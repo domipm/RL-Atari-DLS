@@ -1,40 +1,33 @@
 # Script that generate dataset for VQ-VAE plays an Atari game and saves individual frames
 
-# Import ALE namespace for Gymnasium
-import ale_py
-# Import Gymnasium Atari wrapper
-import gymnasium as gym
-
-import matplotlib.pyplot as plt
-
-from PIL import Image
-
-import os
+import  os
+import  shutil
+import  ale_py                      # ale_py namespace needed for gymnasium library
+import  gymnasium   as      gym
+from    PIL         import  Image
 
 # Number of frames to generate
 n_frames = 1000
 
 # Game name (Gymnasium name)
-game_name = "Breakout-v5"
+game_name = "Pong-v5"
 
 # Frame output directory
 path_frames = "./frames/" + game_name + "/"
 
-# Create environment (if possible)
+# Create environment
 env = gym.make("ALE/" + game_name, render_mode="rgb_array")
 
-# Check if directory exists, otherwise create it
+# Check if directory exists
 if os.path.isdir(path_frames):
     # Directory already exists, remove existing frames
-    pass
-# Directory does not exist, create it
-else:
-    os.mkdir(path_frames)
+    shutil.rmtree(path_frames, ignore_errors = True)
+# Create empty directory
+os.mkdir(path_frames)
 
 # Initial number of frames
 n = 0
-
-# Play game until we obtain required frames
+# Play game until we obtain required number of frames
 while n <= n_frames:
 
     # Initial observation
@@ -42,58 +35,26 @@ while n <= n_frames:
     # Check if episode is over (to reset game)
     episode_over = False
 
+    # While the episode is not over
     while not episode_over:
 
         # Randomly sample action space
         action = env.action_space.sample()
-
         # Perform one step
         observation, reward, terminated, truncated, info = env.step(action)
-
         # Check if episode is over
         episode_over = terminated or truncated
 
-        # Save the frame
+        # Save the new frame
         img = Image.fromarray( env.render(), mode = 'RGB' )
         img.save(path_frames + "frame_" + str(n) + ".png")
 
         # Update frame counter
         n += 1
-
         # Check if frame limit surpassed
         if n > n_frames:
             # Exit the program
             exit()
 
-    # Reset the environment
+    # If not enough frames but episode over, reset the environment
     observation, info = env.reset()
-
-# Close the environment
-env.close()
-
-exit()
-
-env.reset()
-
-frame = env.render()
-
-img = Image.fromarray(frame, mode = "RGB")
-img.save(path_frames + "frame.png")
-
-exit()
-
-observation, info = env.reset()
-episode_over = False
-
-while not episode_over:
-
-    action = env.action_space.sample()  # agent policy that uses the observation and info
-
-    observation, reward, terminated, truncated, info = env.step(action)
-
-    episode_over = terminated or truncated
-
-    # Render environment
-    frame = env.render()
-
-env.close()
