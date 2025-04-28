@@ -53,7 +53,7 @@ dataset_train, dataset_test = random_split(dataset, [0.95, 0.05])
 # Load train images from dataset batch-wise using dataloader
 dataloader_train = DataLoader(dataset_train, batch_size = 16, shuffle = True)
 # Load evaluation images from dataset batch-wise using dataloader
-dataloader_test = DataLoader(dataset_test, batch_size = 16, shuffle = False)
+dataloader_test = DataLoader(dataset_test, batch_size = 16, shuffle = True)
 
 # Initialize VQ-VAE model
 model = VQ_VAE( embedding_num=512,
