@@ -1,4 +1,6 @@
 # Implementation of Vector-Quantized Variational Auto-Encoder (VAE)
+# This version of the script trains the model on previously-generated sample of images (train split)
+# and evaluates it on similar images (test split)
 
 # Inputs:
 #   sequence of frames (*.png) located in ./frames/(Game-Name)/
@@ -112,7 +114,7 @@ class VQ_VAE(nn.Module):
 
 
 # Directory of images
-path_img = "./frames/Testing-Cats/"
+path_img = "./frames/Testing-Cats/test/"
 # Directory for output
 path_out = "./output/Testing-Cats/"
 
