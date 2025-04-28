@@ -91,7 +91,7 @@ class FramesDataset(Dataset):
 class VQ_VAE(nn.Module):
 
     # Initialization function with definitions for all layers
-    def __init__(self, in_shape = None):
+    def __init__(self, embedding_num, embedding_dim, in_shape = None):
 
         # Initialize parent class
         super().__init__()
@@ -105,7 +105,9 @@ class VQ_VAE(nn.Module):
     # Forward pass of the networks, return output from last dense layer 
     def forward(self, x):
 
-        return self.network(x)
+        # Pass 
+
+        return
 
 
 
