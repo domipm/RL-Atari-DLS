@@ -43,7 +43,6 @@ class FramesDataset(Dataset):
 
     # Initialization function for dataset
     def __init__(self, directory, transform = transform_default):
-
         # Initialize parent class
         super().__init__()
 
