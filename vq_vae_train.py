@@ -1,7 +1,9 @@
 # Script used for training and evaluating the VQ-VAE model
 # on a given testing dataset of images (pre-split into train/test)
 
+import  os
 import  torch
+import  shutil
 import  torchvision
 
 import  torch.nn                    as nn
@@ -27,16 +29,30 @@ from vq_vae import VQ_VAE, FramesDataset
 
 
 # Name of the game (in this case, testing dataset)
-fname = "Testing-Cats"
+fname = "Breakout-v5"
+
+# Path to frames
+path_frames = "./frames/" + fname + "/"
+# Path to output
+path_out = "./output/" + fname + "/"
+
+# Check if directory exists
+if os.path.isdir(path_out):
+    # Directory already exists, remove existing frames
+    shutil.rmtree(path_out, ignore_errors = True)
+# Create empty directory
+os.mkdir(path_out)
 
 # Load dataset using custom dataloader
-dataset = FramesDataset("./frames/" + fname + "/")
+dataset = FramesDataset(path_frames)
 
 # Use random_split to create train/test subsets
 dataset_train, dataset_test = random_split(dataset, [0.95, 0.05])
 
-# Load images from dataset batch-wise using dataloader
+# Load train images from dataset batch-wise using dataloader
 dataloader_train = DataLoader(dataset_train, batch_size = 16, shuffle = True)
+# Load evaluation images from dataset batch-wise using dataloader
+dataloader_test = DataLoader(dataset_test, batch_size = 16, shuffle = False)
 
 # Initialize VQ-VAE model
 model = VQ_VAE( embedding_num=512,
@@ -55,7 +71,7 @@ model = VQ_VAE( embedding_num=512,
 # Training parameters
 epochs          = 100
 learning_rate   = 0.001
-save_weights    = 10         # Save weights every n-th epoch
+save_weights    = 25         # Save weights every n-th epoch
 
 # Define optimizer
 optimizer = optim.Adam(model.parameters(), lr = learning_rate)
@@ -63,7 +79,7 @@ optimizer = optim.Adam(model.parameters(), lr = learning_rate)
 criterion = nn.MSELoss()
 
 # Main training loop
-for epoch in range(1, epochs):
+for epoch in range(1, epochs + 1):
 
     print("Epoch ", epoch)
 
@@ -88,6 +104,8 @@ for epoch in range(1, epochs):
         # Perform optimizer step
         optimizer.step()
 
+    # Obtain evaluation loss
+
     # Save the weights of the model every n-th epochs
     if epoch % save_weights == 0:
         torch.save(model, f = "./output/Testing-Cats/weights_" + str(epoch) + ".pt")
@@ -97,9 +115,6 @@ for epoch in range(1, epochs):
 '''EVALUATION / RECONSTRUCTION'''
 
 
-
-# Load images from dataset batch-wise using dataloader
-dataloader_test = DataLoader(dataset_test, batch_size = 16, shuffle = False)
 
 # Setup plots
 fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (8, 8))
@@ -135,7 +150,7 @@ ax[1].imshow(npimg/np.amax(npimg))
 
 # Setup narrow margins and save image
 plt.tight_layout()
-plt.savefig("./output/Testing-Cats/sample_reconstr.png", dpi=300)
+plt.savefig("./output/Testing-Cats/sample_recon.png", dpi=300)
 
 
 # We can also extract the dicrete, vector-quantized state
