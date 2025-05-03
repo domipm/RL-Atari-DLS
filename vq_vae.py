@@ -23,26 +23,12 @@ from    torchvision.transforms      import v2
 
 
 
-# Define default transform to apply to images
-transform_default = v2.Compose([
-    # Resize all images
-    v2.Resize((128, 64)),
-    # Convert to grayscale
-    # transforms.Grayscale(),
-    # Convert to tensor object
-    v2.ToImage(),
-    v2.ToDtype(torch.float32, scale = True),
-    # Normalize image
-    # v2.Normalize((0.5,), (0.5,)),
-])
-
-
 # Custom class for loading frames
 class FramesDataset(Dataset):
 
 
     # Initialization function for dataset
-    def __init__(self, directory, transform = transform_default):
+    def __init__(self, directory, transform = None):
         # Initialize parent class
         super().__init__()
 
