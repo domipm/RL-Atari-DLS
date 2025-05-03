@@ -49,14 +49,14 @@ os.mkdir(path_out)
 
 # Transform object to apply to frames
 transform_frames = v2.Compose([
-    # Resize all images (to square shape)
+    # Resize all images (square shape or divisible by 2!)
     v2.Resize((128, 128)),
     # Convert to grayscale
-    # v2.Grayscale(),
+    v2.Grayscale(),
     # Convert to tensor object
     v2.ToImage(),
     v2.ToDtype(torch.float32, scale = True),
-    # Normalize image
+    # Normalize image (mean = 0.5, std = 0.5)
     # v2.Normalize((0.5,), (0.5,)),
 ])
 
@@ -88,8 +88,11 @@ model = VQ_VAE( embedding_num=512,
 
 
 
+# Print info on screen
+print("\nVQ-VAE Training for", fname)
+
 # Training parameters
-epochs          = 1
+epochs          = 2
 learning_rate   = 0.001
 # Save weights every n-th epoch
 save_weights    = 25         
@@ -105,7 +108,7 @@ loss_arr = []
 # Main training loop
 for epoch in range(1, epochs + 1):
 
-    print("Epoch ", epoch)
+    print("\n", "*"*6, "Epoch ", epoch, " ", "*"*6)
 
     # For each batch of images
     for image in dataloader_train:
@@ -124,7 +127,7 @@ for epoch in range(1, epochs + 1):
         loss_arr.append( [loss_recon.item(), loss_vq.item(), loss.item()] )
 
         # Print and keep track of loss value
-        print("loss = ", loss.item())
+        print("Loss = ", loss.item(), end = "\r")
 
         # Backpropagate errors backward through network
         loss.backward()
@@ -137,6 +140,8 @@ for epoch in range(1, epochs + 1):
     if epoch % save_weights == 0:
         torch.save(model, f = path_out + "weights_" + str(epoch) + ".pt")
 
+# Print info on screen
+print("\n\nCompleted!\n")
 # Write loss array to file
 np.save(path_out + "loss", arr = loss_arr)
 
