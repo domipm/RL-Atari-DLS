@@ -8,14 +8,10 @@ import  torchvision
 
 import  torch.nn                    as nn
 import  torch.optim                 as optim
-import  torch.nn.functional         as F
 
 import  numpy                       as np
 import  matplotlib.pyplot           as plt
 
-from    PIL                         import Image
-
-from    torch.utils.data            import Dataset
 from    torch.utils.data            import DataLoader, random_split
 from    torchvision.transforms      import v2
 
