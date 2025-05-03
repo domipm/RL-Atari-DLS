@@ -29,6 +29,9 @@ from    vq_vae                      import VQ_VAE, FramesDataset
 
 
 
+# Batch size
+batch_size = 16
+
 # Name of the game (in this case, testing dataset)
 fname = "Breakout-v5"
 
@@ -44,23 +47,39 @@ if os.path.isdir(path_out):
 # Create empty directory
 os.mkdir(path_out)
 
+# Transform object to apply to frames
+transform_frames = v2.Compose([
+    # Resize all images (to square shape)
+    v2.Resize((128, 128)),
+    # Convert to grayscale
+    # v2.Grayscale(),
+    # Convert to tensor object
+    v2.ToImage(),
+    v2.ToDtype(torch.float32, scale = True),
+    # Normalize image
+    # v2.Normalize((0.5,), (0.5,)),
+])
+
 # Load dataset using custom dataloader
-dataset = FramesDataset(path_frames)
+dataset = FramesDataset(path_frames, transform_frames)
+
+# Take single frame from dataset and repeat for batch size (as input shape)
+image_shape = next(iter(dataset)).unsqueeze(0).repeat(batch_size, 1, 1, 1).shape
 
 # Use random_split to create train/test subsets
 dataset_train, dataset_test = random_split(dataset, [0.95, 0.05])
 
 # Load train images from dataset batch-wise using dataloader
-dataloader_train = DataLoader(dataset_train, batch_size = 16, shuffle = True)
+dataloader_train = DataLoader(dataset_train, batch_size = batch_size, shuffle = True)
 # Load evaluation images from dataset batch-wise using dataloader
-dataloader_test = DataLoader(dataset_test, batch_size = 16, shuffle = True)
+dataloader_test = DataLoader(dataset_test, batch_size = batch_size, shuffle = True)
 
 # Initialize VQ-VAE model
 model = VQ_VAE( embedding_num=512,
                 embedding_dim=64,
                 l_codebook=1,
                 l_commit=1,
-                in_shape=torch.Size([16, 3, 128, 64])   
+                in_shape=image_shape   
 )
 
 
@@ -70,9 +89,10 @@ model = VQ_VAE( embedding_num=512,
 
 
 # Training parameters
-epochs          = 5
+epochs          = 1
 learning_rate   = 0.001
-save_weights    = 25         # Save weights every n-th epoch
+# Save weights every n-th epoch
+save_weights    = 25         
 
 # Define optimizer
 optimizer = optim.Adam(model.parameters(), lr = learning_rate)
@@ -118,7 +138,7 @@ for epoch in range(1, epochs + 1):
         torch.save(model, f = path_out + "weights_" + str(epoch) + ".pt")
 
 # Write loss array to file
-np.save(path_out + "log", arr = loss_arr)
+np.save(path_out + "loss", arr = loss_arr)
 
 
 
