@@ -10,7 +10,7 @@ from    PIL         import  Image
 n_frames = 1000
 
 # Game name (Gymnasium name)
-game_name = "Pong-v5"
+game_name = "Breakout-v5"
 
 # Frame output directory
 path_frames = "./frames/" + game_name + "/"
@@ -25,10 +25,16 @@ if os.path.isdir(path_frames):
 # Create empty directory
 os.mkdir(path_frames)
 
+# Print info on screen
+print("\nGenerating frames for", game_name, "...")
+
 # Initial number of frames
 n = 0
 # Play game until we obtain required number of frames
 while n <= n_frames:
+
+    # Print number of frames on screen
+    print("Frame number ", n, end = "\r")
 
     # Initial observation
     observation, info = env.reset()
@@ -53,8 +59,13 @@ while n <= n_frames:
         n += 1
         # Check if frame limit surpassed
         if n > n_frames:
+            # Print info on screen
+            print("Complete!", " "*10, "\n")
             # Exit the program
             exit()
 
     # If not enough frames but episode over, reset the environment
     observation, info = env.reset()
+
+# Print info on screen
+print("Complete!\n")
