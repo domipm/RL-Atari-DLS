@@ -70,7 +70,7 @@ model = VQ_VAE( embedding_num=512,
 
 
 # Training parameters
-epochs          = 25
+epochs          = 5
 learning_rate   = 0.001
 save_weights    = 25         # Save weights every n-th epoch
 
@@ -160,7 +160,9 @@ ax[1].imshow(npimg/np.amax(npimg))
 
 # Setup narrow margins and save image
 plt.tight_layout()
-plt.savefig(path_out + "sample_recon.png", dpi=300)
+plt.savefig(path_out + "sample_recon.pdf")
+# Close plot
+plt.close()
 
 
 
@@ -169,7 +171,7 @@ plt.savefig(path_out + "sample_recon.png", dpi=300)
 
 
 # Load loss output 
-loss = np.load(path_out + "/log.npy")
+loss = np.load(path_out + "/loss.npy")
 
 # Define labels for legend
 labels = [r"$\mathcal{L}_{\text{Recon}}$", r"$\mathcal{L}_{\text{VQ}}$", r"$\mathcal{L}_{\text{Total}}$"]
@@ -185,4 +187,6 @@ plt.ylabel("Loss")
 # Save plot
 plt.legend()
 plt.tight_layout()
-plt.savefig(path_out + "loss_log.png", dpi=300)
+plt.savefig(path_out + "loss_log.pdf")
+# Close plot
+plt.close()
