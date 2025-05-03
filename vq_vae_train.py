@@ -70,7 +70,7 @@ model = VQ_VAE( embedding_num=512,
 
 
 # Training parameters
-epochs          = 100
+epochs          = 25
 learning_rate   = 0.001
 save_weights    = 25         # Save weights every n-th epoch
 
@@ -78,6 +78,9 @@ save_weights    = 25         # Save weights every n-th epoch
 optimizer = optim.Adam(model.parameters(), lr = learning_rate)
 # Define loss function
 criterion = nn.MSELoss()
+
+# Time-vector of loss value
+loss_arr = []
 
 # Main training loop
 for epoch in range(1, epochs + 1):
@@ -91,11 +94,14 @@ for epoch in range(1, epochs + 1):
         optimizer.zero_grad()
 
         # Compute full forward pass of model for each image batch
-        out, _, loss_vq = model(image)
+        out, index, loss_vq = model(image)
 
         # Compute reconstruction loss term
         loss_recon = criterion(out, image)
         loss = loss_recon + loss_vq
+
+        # Append loss to array
+        loss_arr.append( [loss_recon.item(), loss_vq.item(), loss.item()] )
 
         # Print and keep track of loss value
         print("loss = ", loss.item())
@@ -110,6 +116,9 @@ for epoch in range(1, epochs + 1):
     # Save the weights of the model every n-th epochs
     if epoch % save_weights == 0:
         torch.save(model, f = path_out + "weights_" + str(epoch) + ".pt")
+
+# Write loss array to file
+np.save(path_out + "log", arr = loss_arr)
 
 
 
@@ -154,5 +163,26 @@ plt.tight_layout()
 plt.savefig(path_out + "sample_recon.png", dpi=300)
 
 
-# We can also extract the dicrete, vector-quantized state
-# by computing only the encode_and_quantize forward propagation for an image
+
+'''PLOT LOSS FUNCTIONS'''
+
+
+
+# Load loss output 
+loss = np.load(path_out + "/log.npy")
+
+# Define labels for legend
+labels = [r"$\mathcal{L}_{\text{Recon}}$", r"$\mathcal{L}_{\text{VQ}}$", r"$\mathcal{L}_{\text{Total}}$"]
+
+# Plot each loss term independently
+for k in range(len(loss[0,:])):
+    plt.plot(range(len(loss[:,0])), loss[:,k], label = labels[k])
+
+# Plot setup
+plt.title("VQ-VAE Training Loss")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+# Save plot
+plt.legend()
+plt.tight_layout()
+plt.savefig(path_out + "loss_log.png", dpi=300)
