@@ -241,19 +241,16 @@ class VQ_VAE(nn.Module):
     def forward(self, x):
 
         # Input image x -> (B, C = 3, H, W)
-        print("x.shape = ", x.shape)
 
         '''ENCODE AND QUANTIZE'''
 
         # Perform encoding and vector quantization -> (B, C = D, H', W')
         z_q, codebook_idx, loss_vq = self.encode_and_quantize(x)
-        print("z_q.shape = ", z_q.shape)
 
         '''DECODE'''
 
         # Perform decoding -> (B, C = 3, H, W)
         z_d = self.decoder(z_q)
-        print("z_d.shape = ", z_d.shape)
 
         # Return:
         # - decoded tensor z_d (B, C, H, W) original shape
