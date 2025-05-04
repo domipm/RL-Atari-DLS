@@ -12,10 +12,12 @@ import  torch.optim                 as  optim
 import  numpy                       as  np
 import  matplotlib.pyplot           as  plt
 
-from    torch.utils.data            import DataLoader, random_split
-from    torchvision.transforms      import v2
+from    PIL                         import  Image
 
-from    vq_vae                      import VQ_VAE, FramesDataset
+from    torch.utils.data            import  DataLoader, random_split
+from    torchvision.transforms      import  v2
+
+from    vq_vae                      import  VQ_VAE, FramesDataset
 
 
 
@@ -24,7 +26,7 @@ from    vq_vae                      import VQ_VAE, FramesDataset
 
 
 # Name of the game (in this case, testing dataset)
-fname = "Pong-v5"
+fname = "Breakout-v5"
 
 # Batch size
 batch_size = 16
@@ -41,7 +43,7 @@ codebook_loss = 1
 commit_loss   = 1
 
 # Training parameters
-epochs          = 50
+epochs          = 1
 learning_rate   = 0.001
 # Save weights every n-th epoch
 save_weights    = 10  
@@ -71,20 +73,20 @@ class AdjustContrast:
 
     def __call__(self, img):
         return v2.functional.adjust_contrast(img, self.factor)
-
+    
 # Transform object to apply to frames
 transform_frames = v2.Compose([
     # Resize all images (square shape or divisible by 2!)
     v2.Resize(img_dims),
     # Adjust contrast
-    AdjustContrast(factor = contrast_fact),
+    # AdjustContrast(factor = contrast_fact),
     # Convert to grayscale
     # v2.Grayscale(),
     # Convert to tensor object
     v2.ToImage(),
     v2.ToDtype(torch.float32, scale = True),
-    # Normalize image (mean = 0.5, std = 0.5)
-    # v2.Normalize((0.5,), (0.5,)),
+    # Normalize image by computed mean and stdev
+    # v2.Normalize(frames_mean, frames_stdev),
 ])
 
 # Load dataset using custom dataloader
@@ -187,12 +189,14 @@ ax[1].set_title("Reconstructed Images")
 
 # Show sample batch of images after transformation to tensor objects
 images = next(iter(dataloader_test))
+
 # Convert batch of images into grid
-grid_img = torchvision.utils.make_grid(images, nrow=4)
+grid_img = torchvision.utils.make_grid(images.detach(), nrow=4)
 # Convert tensor object to numpy array
 npimg = grid_img.permute(1, 2, 0).numpy()
-# Plot image (scale by 255 and convert to uint8)
-ax[0].imshow((npimg * 255).astype(np.uint8))
+
+# Plot image
+ax[0].imshow(npimg)
 
 # Set model to evaluation mode
 model.eval()
@@ -204,8 +208,9 @@ reconstructed, _, loss = model(images)
 grid_img = torchvision.utils.make_grid(reconstructed.detach(), nrow=4)
 # Convert tensor object to numpy array
 npimg = grid_img.permute(1, 2, 0).numpy()
-# Plot image (scale by 255 and convert to uint8)
-ax[1].imshow((npimg*255).astype(np.uint8))
+
+# Plot image
+ax[1].imshow(npimg)
 
 # Setup narrow margins and save image
 plt.tight_layout()
