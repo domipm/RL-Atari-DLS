@@ -177,8 +177,9 @@ cython_debug/
 /frames/
 # Output folder
 /output/
-# Testing folder
+# Testing folder and files
 /testing/
+test*
 
 # MacOS residual files
 *.DS_Store
