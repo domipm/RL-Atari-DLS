@@ -12,8 +12,6 @@ import  torch.optim                 as  optim
 import  numpy                       as  np
 import  matplotlib.pyplot           as  plt
 
-from    PIL                         import  Image
-
 from    torch.utils.data            import  DataLoader, random_split
 from    torchvision.transforms      import  v2
 
@@ -26,27 +24,26 @@ from    vq_vae                      import  VQ_VAE, FramesDataset
 
 
 # Name of the game (in this case, testing dataset)
-fname = "Breakout-v5"
+fname           = "Breakout-v5"
 
 # Batch size
-batch_size = 16
+batch_size      = 16
 # Image dimensions (rescaled)
-img_dims = ((128, 64))
+img_dims        = ((128, 64))
 # Contrast adjustment factor (1 = no adjustment)
-contrast_fact = 1
+contrast_fact   = 1
 
 # Codebook dimension
-codebook_num = 512
-codebook_dim = 64
-# Codebook loss weights
-codebook_loss = 1
-commit_loss   = 1
+codebook_num    = 512
+codebook_dim    = 64
+# Codebook commit loss weight
+beta            = 1
 
 # Training parameters
-epochs          = 1
+epochs          = 10
 learning_rate   = 0.001
 # Save weights every n-th epoch
-save_weights    = 10  
+save_weights    = 25
 
 
 
@@ -57,7 +54,7 @@ save_weights    = 10
 # Path to frames
 path_frames = "./frames/" + fname + "/"
 # Path to output
-path_out = "./output/" + fname + "/"
+path_out    = "./output/" + fname + "/"
 
 # Check if directory exists
 if os.path.isdir(path_out):
@@ -101,15 +98,13 @@ dataset_train, dataset_test = random_split(dataset, [0.95, 0.05])
 # Load train images from dataset batch-wise using dataloader
 dataloader_train = DataLoader(dataset_train, batch_size = batch_size, shuffle = True)
 # Load evaluation images from dataset batch-wise using dataloader
-dataloader_test = DataLoader(dataset_test, batch_size = batch_size, shuffle = True)
+dataloader_test  = DataLoader(dataset_test, batch_size = batch_size, shuffle = True)
 
 # Initialize VQ-VAE model
 model = VQ_VAE( embedding_num = codebook_num,
-                embedding_dim = codebook_dim,
-                l_codebook    = codebook_loss,
-                l_commit      = commit_loss,
-                in_shape      = image_shape   
-)
+                    embedding_dim = codebook_dim,
+                    beta          = beta,
+                    in_shape      = image_shape, )
 
 
 
@@ -126,7 +121,7 @@ optimizer = optim.Adam(model.parameters(), lr = learning_rate)
 criterion = nn.MSELoss()
 
 # Time-vector of loss value
-loss_arr = []
+loss_arr  = []
 
 # Main training loop
 for epoch in range(1, epochs + 1):
@@ -147,7 +142,7 @@ for epoch in range(1, epochs + 1):
 
         # Compute reconstruction loss term
         loss_recon = criterion(out, image)
-        loss = loss_recon + loss_vq
+        loss       = loss_recon + loss_vq
 
         # Print and keep track of loss value
         print("Loss = {:.17f}".format(loss.item()), end = "\r")
@@ -193,7 +188,7 @@ images = next(iter(dataloader_test))
 # Convert batch of images into grid
 grid_img = torchvision.utils.make_grid(images.detach(), nrow=4)
 # Convert tensor object to numpy array
-npimg = grid_img.permute(1, 2, 0).numpy()
+npimg    = grid_img.permute(1, 2, 0).numpy()
 
 # Plot image
 ax[0].imshow(npimg)
@@ -207,7 +202,7 @@ reconstructed, _, loss = model(images)
 # Convert batch of images into grid
 grid_img = torchvision.utils.make_grid(reconstructed.detach(), nrow=4)
 # Convert tensor object to numpy array
-npimg = grid_img.permute(1, 2, 0).numpy()
+npimg    = grid_img.permute(1, 2, 0).numpy()
 
 # Plot image
 ax[1].imshow(npimg)
@@ -225,7 +220,7 @@ plt.close()
 
 
 # Load loss output 
-loss = np.load(path_out + "/loss_log.npy")
+loss   = np.load(path_out + "/loss_log.npy")
 
 # Define labels for legend
 labels = [r"$\mathcal{L}_{\text{Recon}}$", r"$\mathcal{L}_{\text{VQ}}$", r"$\mathcal{L}_{\text{Total}}$"]
