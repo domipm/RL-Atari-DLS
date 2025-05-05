@@ -56,37 +56,18 @@ class FramesDataset(Dataset):
         
         # Return tensor image
         return image
+    
+
+
+'''ENCODER'''
 
 
 
-'''VQ-VAE MODEL ARCHITECTURE DEFINITION'''
+class Encoder(nn.Module):
 
 
-
-class VQ_VAE(nn.Module):
-
-
-    # Initialization function with definitions for all layers
-    def __init__(self, embedding_num = 512, embedding_dim = 64, l_codebook = 1, l_commit = 1, in_shape = torch.Size([0, 0, 0, 0])):
-        # Initialize parent class
+    def __init__( self, embedding_dim, in_shape ):
         super().__init__()
-
-        # Input image shape
-        self.in_shape = in_shape
-
-        # Embedding number K (Number of vectors in codebook) 
-        self.embedding_num = embedding_num
-        # Embedding dimension D (Size of vectors in codebook)
-        self.embedding_dim = embedding_dim
-        # Embeddings (Codebook) shape (K, D)
-        self.codebook = nn.Embedding(self.embedding_num, self.embedding_dim)
-        # Initialize codebook weights uniformly
-        self.codebook.weight.data.uniform_(-1/self.embedding_num, 1/self.embedding_num)
-
-        # Weight for codebook loss term
-        self.l_codebook = l_codebook
-        # Weight for commitment loss term
-        self.l_commit = l_commit
 
         # Encoder (Sequential layers)
         self.encoder = nn.Sequential(
@@ -111,14 +92,40 @@ class VQ_VAE(nn.Module):
 
             # Convolutional layer (B, C = 3, H, W) -> (B, C = 16, H/2, W/2)
             nn.Conv2d(in_channels = 32, 
-                      out_channels = self.embedding_dim, 
+                      out_channels = embedding_dim, 
                       kernel_size = 4, stride = 2, padding = 1),
             # Batch normalization layer
-            nn.BatchNorm2d(num_features = self.embedding_dim),
+            nn.BatchNorm2d(num_features = embedding_dim),
             # ReLU activation function
             nn.ReLU(),
 
         )
+
+        return
+    
+
+    # Forward pass of encoder
+    def forward(self, x):
+
+        # Apply encoder to input tensor
+        z_e = self.encoder(x)
+
+        # Return encoded input
+        return z_e
+
+
+
+'''DECODER'''
+
+
+
+class Decoder(nn.Module):
+
+
+    # Initialization function
+    def __init__(self, in_shape):
+        # Initialize parent class
+        super().__init__()
 
         # Decoder (Sequential layers)
         self.decoder = nn.Sequential(
@@ -143,10 +150,10 @@ class VQ_VAE(nn.Module):
 
             # Convolutional layer (B, C = 3, H, W) -> (B, C = 16, H/2, W/2)
             nn.ConvTranspose2d(in_channels = 16, 
-                      out_channels = self.in_shape[1], 
+                      out_channels = in_shape[1], 
                       kernel_size = 4, stride = 2, padding = 1),
             # Batch normalization layer
-            nn.BatchNorm2d(num_features = self.in_shape[1]),
+            nn.BatchNorm2d(num_features = in_shape[1]),
             # ReLU activation function
             nn.Tanh(),
 
@@ -155,25 +162,44 @@ class VQ_VAE(nn.Module):
         return
     
 
-    # Encoder and quantization forward pass (Encoder + Vector Quant.)
-    def encode_and_quantize(self, x):
+    # Forward pass of decoder
+    def forward(self, z_q):
 
-        '''INPUT TENSOR'''
+        # Decode the tensor
+        z_d = self.decoder(z_q)
 
-        # Input image x: (B, C = 3, H, W)
+        # Return decoded tensor
+        return z_d
+    
 
-        '''ENCODER'''
 
-        # Encode image x -> z_e: (B, C = 3, H, W) -> (B, D, H', W')
-        # (output of the encoder, higher feature dimension but lower spatial dimensions)
-        z_e = self.encoder(x)
+'''VECTOR QUANTIZER'''
 
-        '''VECTOR QUANTIZATION'''
+
+
+class VQ(nn.Module):
+
+
+    # Initialization function
+    def __init__(self, codebook, beta):
+        # Initialize parent class
+        super().__init__()
+
+        # Define codebook object
+        # (embedding number/dimension == codebook.weights.shape[0/1])
+        self.codebook = codebook
+        # Define commit loss weight beta
+        self.beta = beta
+
+        return
+    
+
+    def forward(self, z_e):
 
         # Permute tensor to shape (B, H, W, D)
         z_perm = z_e.permute(0, 2, 3, 1).contiguous()
         # Flatten (batch + spatial) dimensions together to (B x H' x W', D)
-        z_flat = z_perm.view(-1, self.embedding_dim)
+        z_flat = z_perm.view(-1, self.codebook.weight.shape[1])
 
         # Compute distance (squared) matrix between vectors and codebook embeddings
         # (given by (a - b)^2 = a^2 + b^2 - 2a*b) with shape (B x H x W, D)
@@ -188,7 +214,7 @@ class VQ_VAE(nn.Module):
 
         # Create one-hot encoding of these indices
         # matrix of shape (B x H' x W', D)
-        encodings = torch.zeros(codebook_idx.shape[0], self.embedding_num)
+        encodings = torch.zeros(codebook_idx.shape[0], self.codebook.weight.shape[0])
         # fill one-hot encoded matrix with zeros everywhere except at codebook index
         encodings.scatter_(1, codebook_idx, 1)
 
@@ -206,34 +232,87 @@ class VQ_VAE(nn.Module):
         # Commitment loss term (stabilize embedding choices)
         loss_commit = F.mse_loss( z_quant, z_perm.detach() )
         # Total vector quantization loss function
-        loss_vq = (loss_codebook * self.l_codebook) + (loss_commit * self.l_commit)
-
+        loss_vq = (loss_codebook) + (loss_commit * self.beta)
 
         # Return: 
         # - final encoded-quantized output tensor (for further decoding)
         # - discrete codebook indices
         # - and vq-vae loss term
         return z_q, codebook_idx, loss_vq
+
+
+
+'''VECTOR-QUANZITED VARIATIONAL AUTOENCODER'''
+
+
+
+class VQ_VAE(nn.Module):
+
+
+    def __init__( self, 
+                  embedding_num = 512, 
+                  embedding_dim = 64, 
+                  beta          = 1, 
+                  in_shape      = torch.Size([0, 0, 0, 0]), ):
+        # Initialize parent class
+        super().__init__()
+
+        # Define embedding number K (number of vectors in codebook)
+        self.embedding_num  = embedding_num
+        # Define embedding dimension D (dimension of each vector in codebook)
+        self.embedding_dim  = embedding_dim
+        # Define commit loss weight beta
+        self.beta           = beta
+        # Define input shape
+        self.in_shape       = in_shape
+
+        # Define embedding codebook
+        self.codebook       = nn.Embedding(self.embedding_num, self.embedding_dim)
+        
+        # Initialize codebook weights uniformly
+        self.codebook.weight.data.uniform_(-1/self.embedding_num, 1/self.embedding_num)
+
+        # Define encoder
+        self.encoder            = Encoder( self.embedding_dim, self.in_shape )
+        # Define vector-quantizer
+        self.vector_quantizer   = VQ( self.codebook, self.beta )
+        # Define decoder
+        self.decoder            = Decoder( self.in_shape )        
+
+        return
     
 
-    # Full forward pass of the networks (Encoder + Vector Quant. + Decoder)
+    # Forward pass of VQ-VAE
     def forward(self, x):
 
-        # Input image x -> (B, C = 3, H, W)
+        # Encode the input
+        z_e = self.encoder(x)
 
-        '''ENCODE AND QUANTIZE'''
+        # Perform vector quantization
+        z_q, codebook_idx, loss_vq = self.vector_quantizer(z_e)
 
-        # Perform encoding and vector quantization -> (B, C = D, H', W')
-        z_q, codebook_idx, loss_vq = self.encode_and_quantize(x)
-
-        '''DECODE'''
-
-        # Perform decoding -> (B, C = 3, H, W)
+        # Decode and generate reconstruction
         z_d = self.decoder(z_q)
 
         # Return:
         # - decoded tensor z_d (B, C, H, W) original shape
         # - quantized codebook vector z_q (B, D, H, W)
         # - and vq-vae weighted loss (Codebook + Commitment)
+        # return z_d, codebook_idx, loss_vq
         return z_d, codebook_idx, loss_vq
     
+
+    # Encoder and quantization forward pass (Encoder + Vector Quant.)
+    def encode_and_quantize(self, x):
+
+        # Encode the input
+        z_e = self.encoder(x)
+
+        # Perform vector quantization
+        z_q, codebook_idx, loss_vq = self.vector_quantizer(z_e)
+
+        # Return: 
+        # - final encoded-quantized output tensor (for further decoding)
+        # - discrete codebook indices
+        # - and vq-vae loss term
+        return z_q, codebook_idx, loss_vq
