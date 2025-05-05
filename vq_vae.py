@@ -59,6 +59,120 @@ class FramesDataset(Dataset):
     
 
 
+'''NEW ENCODER (REDUCED CNN)'''
+    
+
+
+class Encoder_New(nn.Module):
+
+
+    def __init__( self, embedding_dim, in_shape ):
+        super().__init__()
+
+        # Encoder (Sequential layers)
+        self.encoder = nn.Sequential(
+
+            # Convolutional layer (B, C = 3, H, W) -> (B, C = 16, H/2, W/2)
+            nn.Conv2d(in_channels = in_shape[1], 
+                      out_channels = 32, 
+                      kernel_size = 4, stride = 2, padding = 1),
+            # Batch normalization layer
+            # nn.BatchNorm2d(num_features = 64),
+            # ReLU activation function
+            nn.ReLU(),
+
+            # Convolutional layer (B, C = 3, H, W) -> (B, C = 32, H/2, W/2)
+            # nn.Conv2d(in_channels = 32, 
+            #          out_channels = 128, 
+            #          kernel_size = 4, stride = 2, padding = 1),
+            # Batch normalization layer
+            # nn.BatchNorm2d(num_features = 128),
+            # ReLU activation function
+            # nn.ReLU(),
+
+            # Convolutional layer (B, C = 3, H, W) -> (B, C = 16, H/2, W/2)
+            nn.Conv2d(in_channels = 32, 
+                      out_channels = embedding_dim, 
+                      kernel_size = 4, stride = 2, padding = 1),
+            # Batch normalization layer
+            # nn.BatchNorm2d(num_features = embedding_dim),
+            # ReLU activation function
+            nn.ReLU(),
+
+        )
+
+        return
+    
+
+    # Forward pass of encoder
+    def forward(self, x):
+
+        # Apply encoder to input tensor
+        z_e = self.encoder(x)
+
+        # Return encoded input
+        return z_e
+    
+
+
+'''NEW DECODER (REDUCED CNN)'''
+
+
+
+class Decoder_New(nn.Module):
+
+
+    # Initialization function
+    def __init__(self, embedding_dim, in_shape):
+        # Initialize parent class
+        super().__init__()
+
+        # Decoder (Sequential layers)
+        self.decoder = nn.Sequential(
+
+            # Transposed Convolutional layer (B, C = 16, H, W)
+            nn.ConvTranspose2d(in_channels = embedding_dim, 
+                      out_channels = 32, 
+                      kernel_size = 4, stride = 2, padding = 1),
+            # Batch normalization layer
+            # nn.BatchNorm2d(num_features = 128),
+            # ReLU activation function
+            nn.ReLU(),
+
+            # Convolutional layer (B, C = 3, H, W) -> (B, C = 32, H/2, W/2)
+            # nn.ConvTranspose2d(in_channels = 128, 
+            #          out_channels = 64, 
+            #          kernel_size = 4, stride = 2, padding = 1),
+            # Batch normalization layer
+            # nn.BatchNorm2d(num_features = 64),
+            # ReLU activation function
+            # nn.ReLU(),
+
+            # Convolutional layer (B, C = 3, H, W) -> (B, C = 16, H/2, W/2)
+            nn.ConvTranspose2d(in_channels = 32, 
+                      out_channels = in_shape[1], 
+                      kernel_size = 4, stride = 2, padding = 1),
+            # Batch normalization layer
+            # nn.BatchNorm2d(num_features = in_shape[1]),
+            # ReLU activation function
+            nn.Tanh(),
+
+        )
+
+        return
+    
+
+    # Forward pass of decoder
+    def forward(self, z_q):
+
+        # Decode the tensor
+        z_d = self.decoder(z_q)
+
+        # Return decoded tensor
+        return z_d
+
+
+
 '''ENCODER'''
 
 
@@ -123,7 +237,7 @@ class Decoder(nn.Module):
 
 
     # Initialization function
-    def __init__(self, in_shape):
+    def __init__(self, embedding_dim, in_shape):
         # Initialize parent class
         super().__init__()
 
@@ -131,7 +245,7 @@ class Decoder(nn.Module):
         self.decoder = nn.Sequential(
 
             # Transposed Convolutional layer (B, C = 16, H, W)
-            nn.ConvTranspose2d(in_channels = 64, 
+            nn.ConvTranspose2d(in_channels = embedding_dim, 
                       out_channels = 32, 
                       kernel_size = 4, stride = 2, padding = 1),
             # Batch normalization layer
@@ -273,11 +387,11 @@ class VQ_VAE(nn.Module):
         self.codebook.weight.data.uniform_(-1/self.embedding_num, 1/self.embedding_num)
 
         # Define encoder
-        self.encoder            = Encoder( self.embedding_dim, self.in_shape )
+        self.encoder            = Encoder_New( self.embedding_dim, self.in_shape )
         # Define vector-quantizer
         self.vector_quantizer   = VQ( self.codebook, self.beta )
         # Define decoder
-        self.decoder            = Decoder( self.in_shape )        
+        self.decoder            = Decoder_New( self.embedding_dim, self.in_shape )        
 
         return
     
