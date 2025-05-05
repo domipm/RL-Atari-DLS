@@ -24,7 +24,7 @@ from    vq_vae                      import  VQ_VAE, FramesDataset
 
 
 # Name of the game (in this case, testing dataset)
-fname           = "Breakout-v5"
+fname           = "Boxing-v5"
 
 # Batch size
 batch_size      = 16
@@ -40,7 +40,7 @@ codebook_dim    = 64
 beta            = 1
 
 # Training parameters
-epochs          = 10
+epochs          = 50
 learning_rate   = 0.001
 # Save weights every n-th epoch
 save_weights    = 25
@@ -102,9 +102,9 @@ dataloader_test  = DataLoader(dataset_test, batch_size = batch_size, shuffle = T
 
 # Initialize VQ-VAE model
 model = VQ_VAE( embedding_num = codebook_num,
-                    embedding_dim = codebook_dim,
-                    beta          = beta,
-                    in_shape      = image_shape, )
+                embedding_dim = codebook_dim,
+                beta          = beta,
+                in_shape      = image_shape, )
 
 
 
@@ -132,30 +132,46 @@ for epoch in range(1, epochs + 1):
     print("\n", "*"*6, "Epoch ", epoch, " ", "*"*6)
 
     # For each batch of images
-    for image in dataloader_train:
+    for image_train in dataloader_train:
 
         # Reset gradients
         optimizer.zero_grad()
 
         # Compute full forward pass of model for each image batch
-        out, index, loss_vq = model(image)
+        out_train, index, loss_vq = model(image_train)
 
         # Compute reconstruction loss term
-        loss_recon = criterion(out, image)
-        loss       = loss_recon + loss_vq
+        loss_recon       = criterion(out_train, image_train)
+        loss_train       = loss_recon + loss_vq
 
         # Print and keep track of loss value
-        print("Loss = {:.17f}".format(loss.item()), end = "\r")
+        print("Loss (Train) = {:.17f}".format(loss_train.item()), end = "\r")
 
         # Backpropagate errors backward through network
-        loss.backward()
+        loss_train.backward()
         # Perform optimizer step
         optimizer.step()
 
+    # Newline output
+    print()
+
+    # Set model to evaluate
+    model.eval()
+
     # Obtain evaluation loss
+    for image_test in dataloader_test:
+
+        # Compute predicted image
+        out_test, _, _ = model(image_test)
+
+        # Compute reconstruction loss
+        loss_test = criterion(out_test, image_test)
+
+        # Print and keep track of test loss value
+        print("Loss (Test)  = {:.17f}".format(loss_test.item()), end = "\r")
 
     # Append final loss of current epoch
-    loss_arr.append( [loss_recon.item(), loss_vq.item(), loss.item()] )
+    loss_arr.append( [loss_recon.item(), loss_vq.item(), loss_test.item()] )
 
     # Save the weights of the model every n-th epochs
     if epoch % save_weights == 0:
