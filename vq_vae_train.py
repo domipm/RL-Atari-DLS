@@ -13,7 +13,7 @@ import  numpy                       as  np
 import  matplotlib.pyplot           as  plt
 
 from    torch.utils.data            import  DataLoader, random_split
-from    torchvision.transforms      import  v2
+from    torchvision.transforms      import  v2, InterpolationMode
 
 from    vq_vae                      import  VQ_VAE, FramesDataset
 
@@ -24,7 +24,7 @@ from    vq_vae                      import  VQ_VAE, FramesDataset
 
 
 # Name of the game (in this case, testing dataset)
-fname           = "Boxing-v5"
+fname           = "Freeway-v5"
 
 # Batch size
 batch_size      = 16
@@ -37,7 +37,7 @@ contrast_fact   = 1
 codebook_num    = 512
 codebook_dim    = 64
 # Codebook commit loss weight
-beta            = 1
+beta            = 0.25
 
 # Training parameters
 epochs          = 50
@@ -56,34 +56,19 @@ path_frames = "./frames/" + fname + "/"
 # Path to output
 path_out    = "./output/" + fname + "/"
 
-# Check if directory exists
-if os.path.isdir(path_out):
-    # Directory already exists, remove existing frames
-    shutil.rmtree(path_out, ignore_errors = True)
-# Create empty directory
-os.mkdir(path_out)
+# Create directory if it doesn't exist
+if not os.path.isdir(path_out):
+    os.mkdir(path_out)
 
-# Contrast adjustment class
-class AdjustContrast:
-    def __init__(self, factor):
-        self.factor = factor
-
-    def __call__(self, img):
-        return v2.functional.adjust_contrast(img, self.factor)
-    
 # Transform object to apply to frames
 transform_frames = v2.Compose([
-    # Resize all images (square shape or divisible by 2!)
-    v2.Resize(img_dims),
-    # Adjust contrast
-    # AdjustContrast(factor = contrast_fact),
     # Convert to grayscale
-    # v2.Grayscale(),
+    v2.Grayscale(),
     # Convert to tensor object
     v2.ToImage(),
     v2.ToDtype(torch.float32, scale = True),
-    # Normalize image by computed mean and stdev
-    # v2.Normalize(frames_mean, frames_stdev),
+    # Resize all images (square shape or divisible by 2!)
+    v2.Resize(img_dims, interpolation = InterpolationMode.NEAREST, antialias = False),
 ])
 
 # Load dataset using custom dataloader
@@ -145,7 +130,7 @@ for epoch in range(1, epochs + 1):
         loss_train       = loss_recon + loss_vq
 
         # Print and keep track of loss value
-        print("Loss (Train) = {:.17f}".format(loss_train.item()), end = "\r")
+        print("Loss (Train) = {:.9f}".format(loss_train.item()), end = "\r")
 
         # Backpropagate errors backward through network
         loss_train.backward()
@@ -168,7 +153,7 @@ for epoch in range(1, epochs + 1):
         loss_test = criterion(out_test, image_test)
 
         # Print and keep track of test loss value
-        print("Loss (Test)  = {:.17f}".format(loss_test.item()), end = "\r")
+        print("Loss (Test)  = {:.9f}".format(loss_test.item()), end = "\r")
 
     # Append final loss of current epoch
     loss_arr.append( [loss_recon.item(), loss_vq.item(), loss_test.item()] )
@@ -249,6 +234,7 @@ for k in range(len(loss[0,:])):
 plt.title("VQ-VAE Training Loss")
 plt.xlabel("Epochs")
 plt.ylabel("Loss")
+plt.yscale("log")
 # Save plot
 plt.legend()
 plt.tight_layout()

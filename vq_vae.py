@@ -56,121 +56,45 @@ class FramesDataset(Dataset):
         
         # Return tensor image
         return image
-    
 
 
-'''NEW ENCODER (REDUCED CNN)'''
-    
+
+'''RESIDUAL BLOCK'''
 
 
-class Encoder_New(nn.Module):
 
+class Residual(nn.Module):
 
-    def __init__( self, embedding_dim, in_shape ):
+    def __init__(self, channels):
+
         super().__init__()
 
-        # Encoder (Sequential layers)
-        self.encoder = nn.Sequential(
+        self.relu = nn.ReLU()
 
-            # Convolutional layer (B, C = 3, H, W) -> (B, C = 16, H/2, W/2)
-            nn.Conv2d(in_channels = in_shape[1], 
-                      out_channels = 32, 
-                      kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            # nn.BatchNorm2d(num_features = 64),
-            # ReLU activation function
+        self.residual = nn.Sequential(
+
+            # Convolutional layer (no downsampling)
+            nn.Conv2d(in_channels = channels,
+                      out_channels = channels,
+                      kernel_size = 3,
+                      stride = 1,
+                      padding = 1),
             nn.ReLU(),
-
-            # Convolutional layer (B, C = 3, H, W) -> (B, C = 32, H/2, W/2)
-            # nn.Conv2d(in_channels = 32, 
-            #          out_channels = 128, 
-            #          kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            # nn.BatchNorm2d(num_features = 128),
-            # ReLU activation function
-            # nn.ReLU(),
-
-            # Convolutional layer (B, C = 3, H, W) -> (B, C = 16, H/2, W/2)
-            nn.Conv2d(in_channels = 32, 
-                      out_channels = embedding_dim, 
-                      kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            # nn.BatchNorm2d(num_features = embedding_dim),
-            # ReLU activation function
-            nn.ReLU(),
+            # Convolutional layer (no downsampling)
+            nn.Conv2d(in_channels = channels,
+                       out_channels = channels,
+                       kernel_size = 3,
+                       stride = 1,
+                       padding = 1),
 
         )
 
         return
     
-
-    # Forward pass of encoder
     def forward(self, x):
 
-        # Apply encoder to input tensor
-        z_e = self.encoder(x)
-
-        # Return encoded input
-        return z_e
+        return self.relu( x + self.residual(x) )
     
-
-
-'''NEW DECODER (REDUCED CNN)'''
-
-
-
-class Decoder_New(nn.Module):
-
-
-    # Initialization function
-    def __init__(self, embedding_dim, in_shape):
-        # Initialize parent class
-        super().__init__()
-
-        # Decoder (Sequential layers)
-        self.decoder = nn.Sequential(
-
-            # Transposed Convolutional layer (B, C = 16, H, W)
-            nn.ConvTranspose2d(in_channels = embedding_dim, 
-                      out_channels = 32, 
-                      kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            # nn.BatchNorm2d(num_features = 128),
-            # ReLU activation function
-            nn.ReLU(),
-
-            # Convolutional layer (B, C = 3, H, W) -> (B, C = 32, H/2, W/2)
-            # nn.ConvTranspose2d(in_channels = 128, 
-            #          out_channels = 64, 
-            #          kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            # nn.BatchNorm2d(num_features = 64),
-            # ReLU activation function
-            # nn.ReLU(),
-
-            # Convolutional layer (B, C = 3, H, W) -> (B, C = 16, H/2, W/2)
-            nn.ConvTranspose2d(in_channels = 32, 
-                      out_channels = in_shape[1], 
-                      kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            # nn.BatchNorm2d(num_features = in_shape[1]),
-            # ReLU activation function
-            nn.Tanh(),
-
-        )
-
-        return
-    
-
-    # Forward pass of decoder
-    def forward(self, z_q):
-
-        # Decode the tensor
-        z_d = self.decoder(z_q)
-
-        # Return decoded tensor
-        return z_d
-
 
 
 '''ENCODER'''
@@ -186,30 +110,20 @@ class Encoder(nn.Module):
         # Encoder (Sequential layers)
         self.encoder = nn.Sequential(
 
-            # Convolutional layer (B, C = 3, H, W) -> (B, C = 16, H/2, W/2)
+            # Convolutional layer (no downsampling)
             nn.Conv2d(in_channels = in_shape[1], 
-                      out_channels = 16, 
-                      kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            nn.BatchNorm2d(num_features = 16),
-            # ReLU activation function
-            nn.ReLU(),
-
-            # Convolutional layer (B, C = 3, H, W) -> (B, C = 32, H/2, W/2)
-            nn.Conv2d(in_channels = 16, 
                       out_channels = 32, 
-                      kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            nn.BatchNorm2d(num_features = 32),
+                      kernel_size = 3, stride = 1, padding = 1),
             # ReLU activation function
             nn.ReLU(),
 
-            # Convolutional layer (B, C = 3, H, W) -> (B, C = 16, H/2, W/2)
+            # Residual block
+            Residual(32),
+
+            # Convolutional layer (downsampling)
             nn.Conv2d(in_channels = 32, 
                       out_channels = embedding_dim, 
                       kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            nn.BatchNorm2d(num_features = embedding_dim),
             # ReLU activation function
             nn.ReLU(),
 
@@ -244,32 +158,20 @@ class Decoder(nn.Module):
         # Decoder (Sequential layers)
         self.decoder = nn.Sequential(
 
-            # Transposed Convolutional layer (B, C = 16, H, W)
-            nn.ConvTranspose2d(in_channels = embedding_dim, 
-                      out_channels = 32, 
-                      kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            nn.BatchNorm2d(num_features = 32),
-            # ReLU activation function
-            nn.ReLU(),
+            # Transposed Convolutional layer (No upsampling)
+            nn.ConvTranspose2d(in_channels = embedding_dim,
+                               out_channels = 32,
+                               kernel_size = 3, stride = 1, padding = 1),
 
-            # Convolutional layer (B, C = 3, H, W) -> (B, C = 32, H/2, W/2)
+            # Residual block
+            Residual(32),
+
+            # Convolutional layer (upsampling)
             nn.ConvTranspose2d(in_channels = 32, 
-                      out_channels = 16, 
-                      kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            nn.BatchNorm2d(num_features = 16),
-            # ReLU activation function
-            nn.ReLU(),
-
-            # Convolutional layer (B, C = 3, H, W) -> (B, C = 16, H/2, W/2)
-            nn.ConvTranspose2d(in_channels = 16, 
                       out_channels = in_shape[1], 
                       kernel_size = 4, stride = 2, padding = 1),
-            # Batch normalization layer
-            nn.BatchNorm2d(num_features = in_shape[1]),
             # ReLU activation function
-            nn.Tanh(),
+            nn.Sigmoid(),
 
         )
 
@@ -387,11 +289,11 @@ class VQ_VAE(nn.Module):
         self.codebook.weight.data.uniform_(-1/self.embedding_num, 1/self.embedding_num)
 
         # Define encoder
-        self.encoder            = Encoder_New( self.embedding_dim, self.in_shape )
+        self.encoder            = Encoder( self.embedding_dim, self.in_shape )
         # Define vector-quantizer
         self.vector_quantizer   = VQ( self.codebook, self.beta )
         # Define decoder
-        self.decoder            = Decoder_New( self.embedding_dim, self.in_shape )        
+        self.decoder            = Decoder( self.embedding_dim, self.in_shape )        
 
         return
     
