@@ -14,7 +14,9 @@ import  matplotlib.pyplot           as  plt
 from    torch.utils.data            import  DataLoader, random_split
 from    torchvision.transforms      import  v2, InterpolationMode
 
-from    vq_vae                      import  VQ_VAE, FramesDataset
+from    vq_vae                      import  VQ_VAE
+
+import  dataloader
 
 
 
@@ -23,12 +25,12 @@ from    vq_vae                      import  VQ_VAE, FramesDataset
 
 
 # Name of the game (in this case, testing dataset)
-fname           = "Breakout-v5"
+fname           = "Pong-v5"
 
 # Batch size
 batch_size      = 16
 # Image dimensions (rescaled)
-img_dims        = ((128, 64))
+img_dims        = ((128, 128))
 # Contrast adjustment factor (1 = no adjustment)
 contrast_fact   = 1
 
@@ -59,10 +61,15 @@ path_out    = "./output/" + fname + "/"
 if not os.path.isdir(path_out):
     os.mkdir(path_out)
 
+# Compute margins based on dynamic map of frames
+_, l, r, t, b = dataloader.get_margins(path_frames = path_frames)
+
 # Transform object to apply to frames
 transform_frames = v2.Compose([
     # Convert to grayscale
     v2.Grayscale(),
+    # Perform custom margin cropping
+    dataloader.CustomMarginCrop(l, r, t, b),
     # Convert to tensor object
     v2.ToImage(),
     v2.ToDtype(torch.float32, scale = True),
@@ -71,7 +78,7 @@ transform_frames = v2.Compose([
 ])
 
 # Load dataset using custom dataloader
-dataset = FramesDataset(path_frames, transform_frames)
+dataset = dataloader.FramesDataset(path_frames, transform_frames)
 
 # Take single frame from dataset and repeat for batch size (as input shape)
 image_shape = next(iter(dataset)).unsqueeze(0).repeat(batch_size, 1, 1, 1).shape
@@ -220,7 +227,7 @@ plt.close()
 
 
 # Load loss output 
-loss   = np.load(path_out + "/loss_log.npy")
+loss   = np.load(path_out + "/vqvae.npy")
 
 # Define labels for legend
 labels = [r"$\mathcal{L}_{\text{Recon}}$", r"$\mathcal{L}_{\text{VQ}}$", r"$\mathcal{L}_{\text{Total}}$"]

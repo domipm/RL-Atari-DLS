@@ -22,7 +22,7 @@ import  dataloader
 
 
 # Game name
-fname = "Breakout-v5"
+fname = "Boxing-v5"
 
 # Path to output
 path_out    = "./output/" + fname + "/"
@@ -100,6 +100,7 @@ def get_index_from_image(img, state_space_size):
     img = transform_frames(img) 
 
     img = img.unsqueeze(0)  # Add batch dimension (1,3,128,64)
+    # Ensure no gradient calculation
     with torch.no_grad():
         _, codebook_idx, _ = model.encode_and_quantize(img) # (1,4,84,84)
 
@@ -136,7 +137,7 @@ file_weights = np.max(file_weights)
 # Import VQ-VAE model
 model_path = f"{path_out}weights_{str(file_weights)}.pt"
 try:
-    model = torch.load(model_path)
+    model = torch.load(model_path, weights_only = True)
     model.eval()
     print(f"Loaded model weights from {model_path}")
 except:

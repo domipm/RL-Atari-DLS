@@ -10,7 +10,7 @@ from    PIL         import  Image
 n_frames = 1000
 
 # Game name (Gymnasium name)
-game_name = "Breakout-v5"
+game_name = "Boxing-v5"
 
 # Frame output directory
 path_frames = "./frames/" + game_name + "/"
