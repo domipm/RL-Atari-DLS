@@ -3,7 +3,6 @@
 
 import  os
 import  torch
-import  shutil
 import  torchvision
 
 import  torch.nn                    as  nn
@@ -24,7 +23,7 @@ from    vq_vae                      import  VQ_VAE, FramesDataset
 
 
 # Name of the game (in this case, testing dataset)
-fname           = "Freeway-v5"
+fname           = "Breakout-v5"
 
 # Batch size
 batch_size      = 16
@@ -34,7 +33,7 @@ img_dims        = ((128, 64))
 contrast_fact   = 1
 
 # Codebook dimension
-codebook_num    = 512
+codebook_num    = 2
 codebook_dim    = 64
 # Codebook commit loss weight
 beta            = 0.25
