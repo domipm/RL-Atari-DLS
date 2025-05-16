@@ -1,145 +1,180 @@
 import  os
+import  time
+import  ale_py
+
+import  numpy               as  np
+import  gymnasium           as  gym
+import  matplotlib.pyplot   as  plt
+
 import  torch
-import  ale_py 
 
-import  numpy                   as  np
-import  gymnasium               as  gym
-import  matplotlib.pyplot       as  plt
+from    PIL                         import  Image
+from    collections                 import  deque, defaultdict
+from    torchvision.transforms      import  v2, InterpolationMode
 
-from    PIL                     import  Image, ImageEnhance, ImageDraw
-from    collections             import  deque, defaultdict
-from    torchvision.transforms  import  v2
-
-from    vq_vae                  import VQ_VAE, FramesDataset
+# Custom Dataloader and Preprocessing
+import  dataloader
 
 
 
-####### Define the environment #######
+'''HYPERPARAMETERS'''
 
 
 
-# Name of game
-fname = "Pong-v5"
-# Environment
-env = gym.make("ALE/" + fname, render_mode="rgb_array")
+# Game name
+fname = "Breakout-v5"
 
+# Path to output
+path_out    = "./output/" + fname + "/"
 
+# Image dimensions to resize to (same as vq-vae!)
+img_dims = ((128, 128))
 
-######## Import VQ-VAE model ########
+# Number of states in the state space
+state_space_size = 6000
 
+# RL Parameters
+optimistic_reward = 2.0 
+gamma = 0.99
+max_iters = 10
+tolerance = 1e-5
+# Epsilon-greedy
+epsilon = 0.99
+epsilon_decay = 0.98
+epsilon_min = 0.01
+# R-Max parameters
+R_max = 1
+m = 3
 
+# Compute margins based on dynamic map of frames
+_, l, r, t, b = dataloader.get_margins(path_frames = "./frames/" + fname + "/")
 
-model_path = f"./output_test/{fname}/weights_90.pt"
-if os.path.exists(model_path):
-    model = torch.load(model_path)
-    model.eval()  # Set model to evaluation mode
-    print(f"Loaded model weights from {model_path}")
-else:
-    print(f"Model weights file {model_path} not found.")
-
-# Define custom transformation for frames (basic resize and tensorize)
-transform = v2.Compose([
-    v2.Resize((128, 64)),
-    # v2.Grayscale(num_output_channels=1),  # uncomment if needed
+# Default transform
+transform_frames = v2.Compose([
+    # Convert to grayscale
+    v2.Grayscale(),
+    # Custom crop
+    dataloader.CustomMarginCrop(l, r, t, b),
+    # Convert to tensor object
     v2.ToImage(),
-    v2.ToDtype(torch.float32, scale=True),  # scales to [0, 1]
+    v2.ToDtype(torch.float32, scale = True),
+    # Resize all images (square shape or divisible by 2!)
+    v2.Resize(img_dims, interpolation = InterpolationMode.NEAREST, antialias = False),
 ])
 
 
 
-######### R-Max-Wrapper ##########
+'''R-MAX WRAPPER'''
 
 
 
+def detgetMRP(P_sas,R_sa,pi):
+
+    P_ss = np.squeeze(np.take_along_axis(P_sas, pi.reshape(-1,1,1), axis=1), axis=1)
+    R_s  = np.take_along_axis(R_sa, pi.reshape(-1,1), axis=1)
+
+    return P_ss,R_s
+
+class PolicyIndexMapper:
+
+    def __init__(self):
+
+        self.state_to_index = {}  # Dictionary to map state code to an index
+        self.index_to_state = {}  # Reverse mapping (for debugging)
+        self.next_index = 0
+
+    def get_index(self, state_code):
+
+        # Check if state_code already has an assigned index
+        if state_code not in self.state_to_index:
+            self.state_to_index[state_code] = self.next_index
+            self.index_to_state[self.next_index] = state_code
+            self.next_index += 1
+
+        return self.state_to_index[state_code]
+
+# Function used to obtain the state_id index from tensor image
 def get_index_from_image(img, state_space_size):
 
-    # Custom enhancer (crop and contrast, for Breakout game)
-
-    # img = img.crop((0, 40, 160, 180))
-    # enhancer = ImageEnhance.Contrast(img)
-    # img = enhancer.enhance(20.0)  # 1.0 = original, try 1.5–2.5
-
-    # Custom transform (for Breakout game)
-
-    # gray = np.mean(env.render()[40:180, 0:160], axis=2)  # Shape: (height, width)
-
-    # Threshold to detect bright pixels (the ball)
-    # Pong background is mostly dark; ball is bright
-    # ball_pixels = np.where(gray > 200)  # Adjust threshold as needed
-
-    # If ball is detected
-    # if ball_pixels[0].size > 0:
-          # Get the average ball position
-    #     y = int(np.mean(ball_pixels[0]))
-    #     x = int(np.mean(ball_pixels[1]))
-
-          # Draw a larger circle around the ball
-    #     draw = ImageDraw.Draw(img)
-    #     radius = 4  # Increase for larger effect
-    #     draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill='white')
-
-    img = transform(img)  # Final processed tensor
+    # Pre-process the frames
+    img = transform_frames(img) 
 
     img = img.unsqueeze(0)  # Add batch dimension (1,3,128,64)
-    # Ensure no gradient computation
     with torch.no_grad():
-        # Encode and quantize the image
         _, codebook_idx, _ = model.encode_and_quantize(img) # (1,4,84,84)
 
-    # Compute state id number
-    state_id = hash(tuple(codebook_idx.view(-1).cpu().numpy().tolist())) % state_space_size
+    # tuple(codebook_idx.view(-1).cpu().numpy().tolist())) % 5000
+    state_id = hash(codebook_idx.numpy().tobytes())
 
-
-    # Return state_id
     return state_id
 
-# Define arrays
-rewardList = []
-lossList = []
-rewarddeq = deque([], maxlen=100)
-lossdeq = deque([],maxlen=100)
-avgrewardlist = []
-avglosslist = []
+# Function used to decide action to take according to policy
+def policy_action(state):
 
-# Define log output
-log_dir = os.path.join(f"rmax_log_", "fname")
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-log_path = os.path.join(log_dir,"rmax_log.txt")
+    if np.random.rand() < epsilon:
+        return env.action_space.sample()
+    else:
+        return policy[mapper.get_index(state)]
 
-# Video output (uncomment if needed)
-# video = VideoRecorder(log_dir)
 
-########### Initialize the environment ###########
 
-state_space_size = 10000 # Number of states in the state space
-threshold = 5 # Threshold for the R-max algorithm
-action_space_size = env.action_space.n # Number of actions in the action space  
+'''INITIALIZATIONS'''
 
-# --- R-Max data structures ---
 
-# Transition table: T[s][a][s'] = count
-T = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
-# Reward table: R[s][a] = sum of rewards
-R = defaultdict(lambda: defaultdict(float))
+# Define environment
+env = gym.make("ALE/" + fname, render_mode="rgb_array")
 
-# Visit counter: N[s][a] = number of times (s,a) was seen
-N = defaultdict(lambda: defaultdict(int))
+# Get maximum (latest) model weights
+file_weights = []
+for file in os.listdir("./output/" + fname + "/"):
+    if file.endswith(".pt"):
+        file_name = file.split(".")[0].split("_")[1]
+        file_weights.append(int(file_name))
+file_weights = np.max(file_weights)
 
-# Known flags: known[s][a] = True if N[s][a] ≥ threshold
-known = defaultdict(lambda: defaultdict(bool))
+# Import VQ-VAE model
+model_path = f"{path_out}weights_{str(file_weights)}.pt"
+try:
+    model = torch.load(model_path)
+    model.eval()
+    print(f"Loaded model weights from {model_path}")
+except:
+    print(f"Model weights file {model_path} not found.")
+    exit()
 
-# Epoch loop 
+# Initialize policy index mapper auxiliary class
+mapper = PolicyIndexMapper()
 
-# Parameters
-gamma = 0.99
-max_iters = 10
-tolerance = 1e-4
+# Initialize necessary arrays
+rewardList      = []
+lossList        = []
+rewarddeq       = deque([], maxlen = 100)
+lossdeq         = deque([], maxlen = 100)
+avgrewardlist   = []
+avglosslist     = []
 
-epsilon = 0.99
-epsilon_decay = 0.9
-epsilon_min = 0.01
+# State and action space
+nS = state_space_size
+nA = env.action_space.n
+
+# R-max data structures
+n_sa_true   = np.zeros((nS, nA))
+n_sa        = np.zeros((nS, nA))
+n_sas       = np.zeros((nS, nA, nS))
+r_sa        = np.zeros((nS, nA))
+
+# State transition matrix
+State_transition = np.zeros((nS, nA, nS))
+for i in range(nS):
+    State_transition[i,:,i] = 1
+
+Qs = []
+
+Q = np.zeros((nS,nA))
+
+Q_prev = np.ones((nS,nA)) * R_max
+Reward = np.ones((nS,nA)) * R_max
 
 # Initialize value function: all zero
 V = np.zeros(state_space_size)
@@ -147,114 +182,91 @@ V = np.zeros(state_space_size)
 # Optional: to reconstruct policy later
 policy = np.zeros(state_space_size, dtype=int)
 
-def policy_action(state):
-    """
-    Returns the action to take in a given state according to the policy.
-    """
 
-    if np.random.rand() < epsilon:
-        return env.action_space.sample()
-    else:
-        return policy[state]
 
+'''MAIN TRAINING LOOP'''
+
+
+    
 for episode in range(400):
 
     print("Episode ", episode)
-    obs, info = env.reset() # (84,84)
 
+    # Reset environment and obtain observation
+    obs, _ = env.reset()
+
+    # Get frame (no pre-processing)
     img = Image.fromarray( env.render(), mode = 'RGB' )
-    state = get_index_from_image(img,state_space_size)
+
+    # Convert the frame into code (preprocess, encode and quantize)
+    code = get_index_from_image(img, state_space_size)
+
     done = False
 
+    # Keep track of total reward
     total_reward = 0
-
-    # Video output (uncomment if needed)
-    # if episode % 20 == 0:
-        # video.reset()
-        # evalenv = AtariWrapper(env,video=video)
 
     while not done:
 
-        # Video output (uncomment if needed)
-        # episode % 20 == 0:
-            # video.save(f"{episode}.mp4")
-
-        action = policy_action(state) # random policy
+        action = policy_action(code) # random policy
         obs, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
         img_next =  Image.fromarray( env.render(), mode = 'RGB' )
-        next_state = get_index_from_image(img_next,state_space_size)
+        next_code = get_index_from_image(img_next, state_space_size)
 
+        # Update reward table
+        r_sa[mapper.get_index(code), action] += reward
+
+        n_sa_true[mapper.get_index(code), action] += 1
+
+        if (n_sa[mapper.get_index(code),  action] < m):
+
+            n_sa[mapper.get_index(code),  action] += 1
+            n_sas[mapper.get_index(code), action, mapper.get_index(next_code)] += 1
+
+        # Update total reward
         total_reward += reward
 
-        # -- Update transition counts --
-        T[state][action][next_state] += 1
-
-        # -- Update reward --
-        R[state][action] += reward
-
-        # -- Update counts --
-        N[state][action] += 1
-
-        # -- Update knownness --
-        if N[state][action] >= threshold:
-            known[state][action] = True
-
         # Move to next state
-        state = next_state
+        code = next_code
+
+    # Construct MDP
+
+    epsilon = max(epsilon * epsilon_decay, epsilon_min)
+
+    for state, action in np.ndindex(n_sa.shape):
+        if n_sa[state, action] >= m:
+            for next_state in range(nS):
+                State_transition[state, action, next_state] = n_sas[state, action, next_state] / n_sa[state, action]
+            Reward[state, action] = r_sa[state, action] / n_sa_true[state, action]
 
     rewardList.append(total_reward)
 
     print("Total reward: ", total_reward)
-    print("number of True in known: ", sum(sum(known[s][a] for a in range(action_space_size)) for s in range(state_space_size)))
+    
+    # Solve MDP
 
-    delta = 0
-    new_V = np.copy(V)
+    # Keep track of previous policy
+    prev_policy = policy.copy()
 
-    for s in range(state_space_size):
-        action_values = []
+    I           = np.eye(State_transition.shape[0])
+    P_ss, R_s   = detgetMRP(State_transition,Reward,policy) # Deterministic 
 
-        for a in range(action_space_size):
-            if known[s][a] and N[s][a] > 0:
-                total = sum(T[s][a].values())
-                if total == 0:
-                    continue
+    V       = np.linalg.solve(I - gamma * P_ss, R_s) 
+    Q_prev  = Q.copy()
+    Q       = Reward + gamma * np.squeeze(np.matmul(State_transition, V))
 
-                # Estimate transition probabilities
-                probs = {s_next: count / total for s_next, count in T[s][a].items()}
+    Qs.append(Q)
 
-                # Expected reward
-                expected_reward = R[s][a] / N[s][a]
+    policy = np.argmax(Q, axis=1) # Deterministic
 
-                # Bellman backup
-                value = sum(p * (expected_reward + gamma * V[s_next]) 
-                            for s_next, p in probs.items())
-                action_values.append(value)
-            else:
-                # Use R-Max optimistic value
-                optimistic_reward =  1  # or env.max_reward
-                value = optimistic_reward + gamma * np.max(V)
-                action_values.append(value)
-
-        if action_values:
-            new_V[s] = max(action_values)
-            policy[s] = np.argmax(action_values)
-
-        delta = max(delta, abs(new_V[s] - V[s]))
-
-    V = new_V
-
-    epsilon = max(epsilon * epsilon_decay, epsilon_min)
-
-    if delta < tolerance:
-        print(f"Converged after {episode+1} iterations.")
-        break
-
-    if episode % 20 == 0:
+    # Plot reward over time
+    if episode % 5 == 0:
+        
         plt.figure(figsize=(10, 5))
         plt.plot(rewardList, label='Reward per episode')
         plt.xlabel('Episode')
         plt.ylabel('Total Reward')
         plt.title('Total Reward per Episode')
         plt.legend()
-        plt.savefig('reward_per_episode.png')
+        plt.savefig(f'{path_out}rmax_reward.png', dpi = 300)
