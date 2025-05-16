@@ -10,54 +10,7 @@ from    PIL                         import Image
 from    torch.utils.data            import Dataset
 from    torchvision.transforms      import v2
 
-
-
-'''CUSTOM FRAME DATASET LOADER'''
-
-
-
-# Custom class for loading frames
-class FramesDataset(Dataset):
-
-
-    # Initialization function for dataset
-    def __init__(self, directory, transform = None):
-        # Initialize parent class
-        super().__init__()
-
-        # Initialize directory
-        self.directory = directory
-        # List all images within directory (ignoring ".*" files)
-        self.images = sorted( [f for f in os.listdir(directory) if not f.startswith('.')] )
-        # Set transform to use on images
-        self.transform = transform
-
-        return
     
-
-    # Return size of dataset (numer of all images)
-    def __len__(self):
-        return len(self.images)
-    
-
-    # Get single item from dataset (for indexing dataset[i] returns i-th sample)
-    def __getitem__(self, index):
-
-        # Get the image with specificed index
-        image = self.images[index]
-        # Get the path to that image (directory/class_plural/class.*)
-        image_path = os.path.join(self.directory, image)
-        # Open image using PIL.Image and apply relevant transformations
-        image = Image.open(image_path)
-        # Apply transformations if given
-        if self.transform != None: image = self.transform(image)
-        # Otherwise, just transform to tensor
-        else: image = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float, scale=True)])(image)
-        
-        # Return tensor image
-        return image
-
-
 
 '''RESIDUAL BLOCK'''
 
@@ -219,9 +172,12 @@ class VQ(nn.Module):
 
         # Compute distance (squared) matrix between vectors and codebook embeddings
         # (given by (a - b)^2 = a^2 + b^2 - 2a*b) with shape (B x H x W, D)
-        d = (       torch.sum( z_flat ** 2, dim = 1, keepdim = True ) 
-              +     torch.sum( self.codebook.weight ** 2, dim = 1 )
-              - 2 * torch.matmul( z_flat, self.codebook.weight.t() ) )
+        # d = (       torch.sum( z_flat ** 2, dim = 1, keepdim = True ) 
+        #       +     torch.sum( self.codebook.weight ** 2, dim = 1 )
+        #       - 2 * torch.matmul( z_flat, self.codebook.weight.t() ) )
+        
+        # Faster computation
+        d = torch.cdist(x1 = z_flat, x2 = self.codebook.weight)
         
         # Find indices of nearest codebook embeddings to each vector
         # shape (B x H' x W', 1) for each vector, one single value
