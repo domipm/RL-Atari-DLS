@@ -842,7 +842,7 @@ plt.plot(range(len(lossList)), lossList, label="Loss")
 plt.plot(range(len(lossList)), avglosslist, label="Average Loss")
 plt.legend()
 plt.tight_layout()
-plt.savefig(os.path.join(out_dir,"dqn_loss.pdf"))
+plt.savefig(os.path.join(out_dir,"dqn_loss_evol.pdf"))
 plt.close()
 
 # Plot reward epoch loss
