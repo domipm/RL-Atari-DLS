@@ -30,12 +30,12 @@ fname           = "Pong-v5"
 # Batch size
 batch_size      = 16
 # Image dimensions (rescaled)
-img_dims        = ((128, 128))
+img_dims        = ((64, )*2)
 # Contrast adjustment factor (1 = no adjustment)
 contrast_fact   = 1
 
 # Codebook dimension
-codebook_num    = 2
+codebook_num    = 512
 codebook_dim    = 64
 # Codebook commit loss weight
 beta            = 0.25
@@ -216,7 +216,7 @@ ax[1].imshow(npimg)
 
 # Setup narrow margins and save image
 plt.tight_layout()
-plt.savefig(path_out + "vqvae_sample_recon.pdf")
+plt.savefig(path_out + "vqvae_sample.pdf")
 # Close plot
 plt.close()
 
@@ -227,7 +227,7 @@ plt.close()
 
 
 # Load loss output 
-loss   = np.load(path_out + "/vqvae.npy")
+loss   = np.load(path_out + "/vqvae_log.npy")
 
 # Define labels for legend
 labels = [r"$\mathcal{L}_{\text{Recon}}$", r"$\mathcal{L}_{\text{VQ}}$", r"$\mathcal{L}_{\text{Total}}$"]
@@ -244,6 +244,6 @@ plt.yscale("log")
 # Save plot
 plt.legend()
 plt.tight_layout()
-plt.savefig(path_out + "vqvae_loss_evol.pdf")
+plt.savefig(path_out + "vqvae_loss.pdf")
 # Close plot
 plt.close()
