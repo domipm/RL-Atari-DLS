@@ -27,10 +27,13 @@ fname = "Pong-v5"
 path_out    = "./output/" + fname + "/"
 
 # Image dimensions to resize to (same as vq-vae!)
-img_dims = ((128, 128))
+img_dims = ((64, )*2)
+
+# Numer of epochs to train for
+epochs = 250
 
 # Number of states in the state space
-state_space_size = 6000
+state_space_size = 8000
 
 # RL Parameters
 optimistic_reward = 2.0 
@@ -67,7 +70,7 @@ transform_frames = v2.Compose([
 
 
 
-def detgetMRP(P_sas,R_sa,pi):
+def detgetMRP(P_sas, R_sa, pi):
 
     P_ss = np.squeeze(np.take_along_axis(P_sas, pi.reshape(-1,1,1), axis=1), axis=1)
     R_s  = np.take_along_axis(R_sa, pi.reshape(-1,1), axis=1)
@@ -188,7 +191,7 @@ policy = np.zeros(state_space_size, dtype=int)
 print()
 
 
-for episode in range(400):
+for episode in range(epochs):
 
     # Reset environment and obtain observation
     obs, _ = env.reset()
