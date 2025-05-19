@@ -167,11 +167,6 @@ def get_margins(path_frames):
 class CustomMarginCrop:
     
     def __init__(self, left=0, right=0, top=0, bottom=0, pad = 2, in_shape = [0, 0]):
-        # Define shape of margins
-        # self.left = left
-        # self.right = right
-        # self.top = top
-        # self.bottom = bottom
 
         # Compute shape of final image (check if padding can be applied safely)
 
