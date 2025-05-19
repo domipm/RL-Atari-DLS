@@ -14,9 +14,9 @@ import  matplotlib.pyplot           as  plt
 from    torch.utils.data            import  DataLoader, random_split
 from    torchvision.transforms      import  v2, InterpolationMode
 
-from    vq_vae                      import  VQ_VAE
-
 import  dataloader
+
+from    vq_vae                      import  VQ_VAE
 
 
 
