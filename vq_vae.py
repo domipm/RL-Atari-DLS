@@ -1,14 +1,8 @@
 # Implementation of Vector-Quantized Variational Auto-Encoder (VAE)
 
-import  os
 import  torch
 import  torch.nn                    as nn
 import  torch.nn.functional         as F
-
-from    PIL                         import Image
-
-from    torch.utils.data            import Dataset
-from    torchvision.transforms      import v2
 
     
 
