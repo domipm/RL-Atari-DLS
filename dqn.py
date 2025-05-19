@@ -33,7 +33,7 @@ env_name = "Pong-v5"
 out_dir = os.path.join("./output/" + env_name)
 
 # Training Hyperparameters
-epochs          = 50                   
+epochs          = 150                   
 batch_size      = 32                 
 eval_cycle      = 500 
 learning_rate   = 2.5*10**-4                     
@@ -589,7 +589,7 @@ memory = ReplayMemory(MEMORY_SIZE)
 optimizer = optim.AdamW(policy_net.parameters(), lr=learning_rate, amsgrad=True)
 
 # Warming up
-print("Warming up...")
+print("\nWarming up...\n")
 
 # Keep track of warm up steps taken
 warmupstep = 0
@@ -652,7 +652,7 @@ avgrewardlist = []
 avglosslist = []
 
 # Training
-print("Training...")
+print("\nTraining...\n")
 
 
 
@@ -661,14 +661,14 @@ print("Training...")
 
 
 # Epoch loop 
-for epoch in range(epochs):
+for epoch in range(1, epochs + 1):
 
     # Obtain observed state and info of step
     obs, info = env.reset()
     # Convert observable to tensor and move to device
     obs = torch.from_numpy(obs).to(device).to(torch.float32)
     # Stack four frames together, hoping to learn temporal info
-    obs = torch.stack((obs,obs,obs,obs)).unsqueeze(0)
+    obs = torch.stack( (obs,)*4 ).unsqueeze(0)
 
     # Keep track of total loss and reward for each step
     total_loss = 0.0
@@ -689,9 +689,9 @@ for epoch in range(epochs):
         
         # Obtain info as tensors and move to correct device
         reward = torch.tensor([reward], device = device, dtype = torch.float32)
-        done = torch.tensor([done],device=device)
+        done = torch.tensor([done], device=device)
         next_obs = torch.from_numpy(next_obs).to(device)
-        next_obs = torch.stack((next_obs,obs[0][0],obs[0][1],obs[0][2])).unsqueeze(0)
+        next_obs = torch.stack( (next_obs,obs[0][0],obs[0][1],obs[0][2]) ).unsqueeze(0)
 
         # Push the transition in memory
         memory.push(obs, action, next_obs, reward, done)
@@ -704,7 +704,7 @@ for epoch in range(epochs):
 
         # Obtain transition, states, action, and rewards batch-wise
         transitions = memory.sample(batch_size)
-        batch = Transition(*zip(*transitions)) 
+        batch = Transition( *zip( *transitions ) ) 
         state_batch = torch.cat(batch.state).to(torch.float32)  
         next_state_batch = torch.cat(batch.next_state).to(torch.float32)       
         action_batch = torch.cat(batch.action)              
@@ -721,9 +721,9 @@ for epoch in range(epochs):
             # Calculate Q(st+1,a)
             next_state_qvalues = policy_net(next_state_batch)
             # Calculate argmax Q(st+1,a)
-            next_state_selected_action = next_state_qvalues.max(1,keepdim=True)[1]
+            next_state_selected_action = next_state_qvalues.max(1, keepdim=True)[1]
             # Calculate Q'(st+1,argmax_a Q(st+1,a))
-            next_state_selected_qvalue = next_state_target_qvalues.gather(1,next_state_selected_action)   
+            next_state_selected_qvalue = next_state_target_qvalues.gather(1, next_state_selected_action)   
 
         # TD Target
         tdtarget = next_state_selected_qvalue * GAMMA * ~done_batch + reward_batch 
@@ -769,7 +769,7 @@ for epoch in range(epochs):
                     for _ in count():
 
                         # Get next action
-                        action = policy_net(obs.to(torch.float32)).max(1)[1]
+                        action = policy_net( obs.to( torch.float32 ) ).max(1)[1]
                         # Get next observed state, reward, and info
                         next_obs, reward, terminated, truncated, info = evalenv.step( action.item() )
                         
@@ -778,7 +778,7 @@ for epoch in range(epochs):
 
                         # Get next state, convert to tensors
                         next_obs = torch.from_numpy(next_obs).to(device) # (84,84)
-                        next_obs = torch.stack((next_obs,obs[0][0],obs[0][1],obs[0][2])).unsqueeze(0) # (1,4,84,84)
+                        next_obs = torch.stack( ( next_obs, obs[0][0], obs[0][1], obs[0][2] ) ).unsqueeze(0)
                         
                         # Update state as new state
                         obs = next_obs
@@ -799,9 +799,6 @@ for epoch in range(epochs):
                     # Close evaluation environment
                     evalenv.close()
                     
-                    # Save model of last step
-                    if epoch % save_weights == 0 and epoch != 0:
-                        torch.save(policy_net, os.path.join(out_dir,f'dqn_weights_{epoch}.pt')) 
                     # Print update on evaluation status
                     print(f"\nEval epoch {epoch}: Reward {evalreward}\n")
 
@@ -819,11 +816,15 @@ for epoch in range(epochs):
     avgrewardlist.append(avgreward)
 
     # Write to console progress updates
-    output = f"Epoch {epoch}: Loss {total_loss:.2f}, Reward {total_reward}, Avgloss {avgloss:.2f}, Avgreward {avgreward:.2f}, Epsilon {eps_threshold:.2f}, TotalStep {steps_done}"
+    output = f"Epoch {epoch}: Loss {total_loss:.2f}, Reward {total_reward}, Avgloss {avgloss:.2f}, Avgreward {avgreward:.2f}, TotalStep {steps_done}"
     print(output)
     # Write to output file same results
     with open(log_path,"a") as f:
         f.write(f"{output}\n")
+
+    # Save model of last step
+    if epoch % save_weights == 0:
+        torch.save(policy_net, os.path.join(out_dir,f'dqn_weights_{epoch}.pt')) 
 
 # Close the environment
 env.close()
