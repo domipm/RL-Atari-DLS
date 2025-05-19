@@ -134,7 +134,7 @@ for file in os.listdir("./output/" + fname + "/"):
 file_weights = np.max(file_weights)
 
 # Import VQ-VAE model
-model_path = f"{path_out}weights_{str(file_weights)}.pt"
+model_path = f"{path_out}vq_vae_weights_{str(file_weights)}.pt"
 try:
     model = torch.load(model_path, weights_only = False)
     model.eval()

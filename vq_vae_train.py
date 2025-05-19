@@ -166,12 +166,12 @@ for epoch in range(1, epochs + 1):
 
     # Save the weights of the model every n-th epochs
     if epoch % save_weights == 0:
-        torch.save(model, f = path_out + "weights_" + str(epoch) + ".pt")
+        torch.save(model, f = path_out + "vqvae_weights_" + str(epoch) + ".pt")
 
 # Print info on screen
 print("\n\nCompleted!\n")
 # Write loss array to file
-np.save(path_out + "loss_log", arr = loss_arr)
+np.save(path_out + "vqvae_loss_log", arr = loss_arr)
 
 
 
@@ -216,7 +216,7 @@ ax[1].imshow(npimg)
 
 # Setup narrow margins and save image
 plt.tight_layout()
-plt.savefig(path_out + "sample_recon.pdf")
+plt.savefig(path_out + "vqvae_sample_recon.pdf")
 # Close plot
 plt.close()
 
@@ -244,6 +244,6 @@ plt.yscale("log")
 # Save plot
 plt.legend()
 plt.tight_layout()
-plt.savefig(path_out + "loss_evol.pdf")
+plt.savefig(path_out + "vqvae_loss_evol.pdf")
 # Close plot
 plt.close()
