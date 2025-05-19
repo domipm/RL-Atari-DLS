@@ -171,7 +171,7 @@ for epoch in range(1, epochs + 1):
 # Print info on screen
 print("\n\nCompleted!\n")
 # Write loss array to file
-np.save(path_out + "vqvae_loss_log", arr = loss_arr)
+np.save(path_out + "vqvae_log", arr = loss_arr)
 
 
 
