@@ -129,12 +129,12 @@ env = gym.make("ALE/" + fname, render_mode="rgb_array")
 file_weights = []
 for file in os.listdir("./output/" + fname + "/"):
     if file.endswith(".pt"):
-        file_name = file.split(".")[0].split("_")[1]
+        file_name = file.split(".")[0].split("_")[2]
         file_weights.append(int(file_name))
 file_weights = np.max(file_weights)
 
 # Import VQ-VAE model
-model_path = f"{path_out}vq_vae_weights_{str(file_weights)}.pt"
+model_path = f"{path_out}vqvae_weights_{str(file_weights)}.pt"
 try:
     model = torch.load(model_path, weights_only = False)
     model.eval()
@@ -148,11 +148,8 @@ mapper = PolicyIndexMapper()
 
 # Initialize necessary arrays
 rewardList      = []
-lossList        = []
 rewarddeq       = deque([], maxlen = 100)
-lossdeq         = deque([], maxlen = 100)
 avgrewardlist   = []
-avglosslist     = []
 
 # State and action space
 nS = state_space_size
@@ -187,10 +184,11 @@ policy = np.zeros(state_space_size, dtype=int)
 '''MAIN TRAINING LOOP'''
 
 
-    
-for episode in range(400):
 
-    print("Episode ", episode)
+print()
+
+
+for episode in range(400):
 
     # Reset environment and obtain observation
     obs, _ = env.reset()
@@ -242,7 +240,8 @@ for episode in range(400):
 
     rewardList.append(total_reward)
 
-    print("Total reward: ", total_reward)
+    # Print log to console
+    print(f"Episode {episode}\tTotal reward: {total_reward}")
     
     # Solve MDP
 
@@ -270,3 +269,6 @@ for episode in range(400):
         plt.title('Total Reward per Episode')
         plt.legend()
         plt.savefig(f'{path_out}rmax_reward.pdf')
+
+    # Save output to file after each epoch
+    np.save(file = path_out + "rmax_log", arr = rewardList)
