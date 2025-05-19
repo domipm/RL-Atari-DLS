@@ -2,15 +2,16 @@
 
 import  os
 import  shutil
-import  ale_py                      # ale_py namespace needed for gymnasium library
+import  ale_py
 import  gymnasium   as      gym
+
 from    PIL         import  Image
 
 # Number of frames to generate
 n_frames = 1000
 
 # Game name (Gymnasium name)
-game_name = "Boxing-v5"
+game_name = "Pong-v5"
 
 # Frame output directory
 path_frames = "./frames/" + game_name + "/"
