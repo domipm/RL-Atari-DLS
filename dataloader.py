@@ -12,7 +12,6 @@ from    torchvision.transforms  import  functional  as  F
 
 
 
-
 '''CUSTOM FRAME DATASET LOADER'''
 
 
@@ -80,7 +79,7 @@ def get_margins(path_frames):
     '''
 
     # Threshold for ignoring binary pixels
-    pnum = 50
+    pnum = 40
 
     # Get list of all files in directory
     images_fnames = np.sort( os.listdir(path_frames) )
@@ -167,17 +166,42 @@ def get_margins(path_frames):
 # Crop to use with v2.Compose transforms
 class CustomMarginCrop:
     
-    def __init__(self, left=0, right=0, top=0, bottom=0):
+    def __init__(self, left=0, right=0, top=0, bottom=0, pad = 2, in_shape = [0, 0]):
         # Define shape of margins
-        self.left = left
-        self.right = right
-        self.top = top
-        self.bottom = bottom
+        # self.left = left
+        # self.right = right
+        # self.top = top
+        # self.bottom = bottom
+
+        # Compute shape of final image (check if padding can be applied safely)
+
+        # Top margin
+        if top - pad > 0:
+            self.top = top - pad
+        else:
+            self.top = top
+        # Left margin
+        if left - pad > 0:
+            self.left = left - pad
+        else:
+            self.left = left
+        # "Width" new dimension
+        if right + pad < in_shape[1]:
+            self.width = right - self.left + pad
+        else:
+            self.width = right - self.left
+        # "Height" new dimension
+        if bottom + pad < in_shape[0]:
+            self.height = bottom - self.top + pad
+        else:
+            self.height = bottom - self.top
+        
 
     def __call__(self, img):
-        # Perform the cropping
-        return F.crop(img, 
-                      top    = self.top, 
-                      left   = self.left + 1,
-                      width  = self.right - self.left,
-                      height = self.bottom - self.top, )
+        # Perform the cropping (try with padding)
+
+        return F.crop(img,
+                      top    = self.top,
+                      left   = self.left,
+                      width  = self.width,
+                      height = self.height, )
