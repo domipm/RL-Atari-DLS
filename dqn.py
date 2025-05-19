@@ -33,7 +33,7 @@ env_name = "Pong-v5"
 out_dir = os.path.join("./output/" + env_name)
 
 # Training Hyperparameters
-epochs          = 150                   
+epochs          = 250                   
 batch_size      = 32                 
 eval_cycle      = 500 
 learning_rate   = 2.5*10**-4                     
