@@ -12,7 +12,6 @@ from    PIL                         import  Image
 from    collections                 import  deque, defaultdict
 from    torchvision.transforms      import  v2, InterpolationMode
 
-# Custom Dataloader and Preprocessing
 import  dataloader
 
 
@@ -22,7 +21,7 @@ import  dataloader
 
 
 # Game name
-fname = "Boxing-v5"
+fname = "Pong-v5"
 
 # Path to output
 path_out    = "./output/" + fname + "/"
@@ -40,11 +39,11 @@ max_iters = 10
 tolerance = 1e-5
 # Epsilon-greedy
 epsilon = 0.99
-epsilon_decay = 0.98
+epsilon_decay = 0.95
 epsilon_min = 0.01
 # R-Max parameters
 R_max = 1
-m = 3
+m     = 3
 
 # Compute margins based on dynamic map of frames
 _, l, r, t, b = dataloader.get_margins(path_frames = "./frames/" + fname + "/")
@@ -137,7 +136,7 @@ file_weights = np.max(file_weights)
 # Import VQ-VAE model
 model_path = f"{path_out}weights_{str(file_weights)}.pt"
 try:
-    model = torch.load(model_path, weights_only = True)
+    model = torch.load(model_path, weights_only = False)
     model.eval()
     print(f"Loaded model weights from {model_path}")
 except:
@@ -270,4 +269,4 @@ for episode in range(400):
         plt.ylabel('Total Reward')
         plt.title('Total Reward per Episode')
         plt.legend()
-        plt.savefig(f'{path_out}rmax_reward.png', dpi = 300)
+        plt.savefig(f'{path_out}rmax_reward.pdf')
