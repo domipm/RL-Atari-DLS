@@ -74,7 +74,7 @@ transform_frames = v2.Compose([
     v2.ToImage(),
     v2.ToDtype(torch.float32, scale = True),
     # Resize all images (square shape or divisible by 2!)
-    v2.Resize(img_dims, interpolation = InterpolationMode.NEAREST, antialias = False),
+    v2.Resize(img_dims, interpolation = InterpolationMode.NEAREST_EXACT, antialias = False),
 ])
 
 # Load dataset using custom dataloader
