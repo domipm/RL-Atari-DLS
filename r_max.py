@@ -126,12 +126,15 @@ def policy_action(state):
 
 
 # Define environment
-env = gym.make("ALE/" + fname, render_mode="rgb_array")
+env = gym.make("ALE/" + fname, 
+               render_mode="rgb_array",
+               frameskip = 1, 
+               repeat_action_probability = 0.25)
 
 # Get maximum (latest) model weights
 file_weights = []
 for file in os.listdir("./output/" + fname + "/"):
-    if file.endswith(".pt"):
+    if file.endswith(".pt") and file.startswith("vqvae"):
         file_name = file.split(".")[0].split("_")[2]
         file_weights.append(int(file_name))
 file_weights = np.max(file_weights)
