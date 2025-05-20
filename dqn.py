@@ -26,14 +26,14 @@ import  matplotlib.pyplot   as      plt
 
 
 
-# Game selection "{Breakout, Pong, Boxing}NoFrameskip-v4"
+# Game selection
 env_name = "Pong-v5"
 
 # Make directory to store results
 out_dir = os.path.join("./output/" + env_name)
 
 # Training Hyperparameters
-epochs          = 250                   
+epochs          = 1500                   
 batch_size      = 32                 
 eval_cycle      = 500 
 learning_rate   = 2.5*10**-4                     
@@ -41,7 +41,7 @@ learning_rate   = 2.5*10**-4
 # Screen size
 screen_size = 84
 # When to save weights of model
-save_weights = 25
+save_weights = 250
 
 # Memory buffer size
 MEMORY_SIZE = 5000
@@ -502,7 +502,7 @@ class AtariWrapper(gym.Wrapper[np.ndarray, int, np.ndarray, int]):
 
 if __name__ == "__main__":
 
-    env = gym.make("ALE/" + env_name)
+    env = gym.make(f"ALE/{env_name}", frameskip = 1, repeat_action_probability = 0.25)
     env = AtariWrapper(env)
 
     obs, info = env.reset()
@@ -523,7 +523,7 @@ if __name__ == "__main__":
 
 
 # Create environment
-env = gym.make("ALE/" + env_name)
+env = gym.make(f"ALE/{env_name}", frameskip = 1, repeat_action_probability = 0.25)
 # Initialize Atari wrapper
 env = AtariWrapper(env, screen_size = screen_size)
 
@@ -750,7 +750,7 @@ for epoch in range(1, epochs + 1):
                 with torch.no_grad():
 
                     # Reset environment for evaluation
-                    evalenv = gym.make("ALE/" + env_name)
+                    evalenv = gym.make(f"ALE/{env_name}", frameskip = 1, repeat_action_probability = 0.25)
                     # Reinitialize Atari wrapper
                     evalenv = AtariWrapper(evalenv, screen_size = screen_size)
 
