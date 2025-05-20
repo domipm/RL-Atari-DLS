@@ -35,10 +35,10 @@ img_dims        = ((64, )*2)
 contrast_fact   = 1
 
 # Codebook dimension
-codebook_num    = 512
-codebook_dim    = 64
+codebook_num    = 256
+codebook_dim    = 32
 # Codebook commit loss weight
-beta            = 0.25
+beta            = 0.5
 
 # Training parameters
 epochs          = 50
