@@ -2,6 +2,7 @@
 
 import  os
 import  torch
+import  torchvision
 
 import  numpy                       as      np
 import  matplotlib.pyplot           as      plt
@@ -89,7 +90,7 @@ dataset_org = FramesDataset("./frames/" + fname, transform_org)
 dataset_pre = FramesDataset("./frames/" + fname, transform_pre)
 
 # Create batch dataloader (pre-processed)
-dataloader_pre = DataLoader(dataset_pre, batch_size = 16, shuffle = False)
+dataloader_pre = DataLoader(dataset_pre, batch_size = 16, shuffle = True)
 
 
 
@@ -172,3 +173,50 @@ ax[1].hlines(y = t - 5, xmin = 0, xmax = 160, color="red")
 plt.tight_layout()
 plt.savefig(f"{path_out}vqvae_preprocess.pdf")
 plt.show()
+
+
+
+'''EVALUATION / RECONSTRUCTION'''
+
+
+
+# Setup plots
+fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (8, 8))
+
+# Remove axis lines
+ax[0].axis('off')
+ax[1].axis('off')
+# Titles
+ax[0].set_title("Original Images")
+ax[1].set_title("Reconstructed Images")
+
+# Show sample batch of images after transformation to tensor objects
+images = next(iter(dataloader_pre))
+
+# Convert batch of images into grid
+grid_img = torchvision.utils.make_grid(images.detach(), nrow=4)
+# Convert tensor object to numpy array
+npimg    = grid_img.permute(1, 2, 0).numpy()
+
+# Plot image
+ax[0].imshow(npimg)
+
+# Set model to evaluation mode
+model.eval()
+
+# Obtain reconstructed images from the model
+reconstructed, _, _ = model(images)
+
+# Convert batch of images into grid
+grid_img = torchvision.utils.make_grid(reconstructed.detach(), nrow=4)
+# Convert tensor object to numpy array
+npimg    = grid_img.permute(1, 2, 0).numpy()
+
+# Plot image
+ax[1].imshow(npimg)
+
+# Setup narrow margins and save image
+plt.tight_layout()
+plt.savefig(path_out + "vqvae_sample.pdf")
+# Close plot
+plt.close()
