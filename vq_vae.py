@@ -4,7 +4,7 @@ import  torch
 import  torch.nn                    as nn
 import  torch.nn.functional         as F
 
-    
+
 
 '''RESIDUAL BLOCK'''
 
@@ -57,22 +57,41 @@ class Encoder(nn.Module):
         # Encoder (Sequential layers)
         self.encoder = nn.Sequential(
 
-            # Convolutional layer (no downsampling)
+            # Convolutional layer (No Downsampling)
+            # (B, C = 1, 64, 64) -> (B, D/4 = 16, 64, 64)
             nn.Conv2d(in_channels = in_shape[1], 
-                      out_channels = 32, 
+                      out_channels = embedding_dim // 4, 
                       kernel_size = 3, stride = 1, padding = 1),
+            # Batch normalization
+            nn.BatchNorm2d(num_features = embedding_dim // 4),
             # ReLU activation function
             nn.ReLU(),
 
-            # Residual block
-            Residual(32),
+            # Residual block (No Downsampling)
+            Residual(embedding_dim // 4),
+            # Residual block (No Downsampling)
+            Residual(embedding_dim // 4),
 
-            # Convolutional layer (downsampling)
-            nn.Conv2d(in_channels = 32, 
+            # Convolutional layer (Downsampling)
+            # (B, D/4 = 16, 64, 64) -> (B, D/2 = 32, 32, 32)
+            nn.Conv2d(in_channels = embedding_dim // 4, 
+                      out_channels = embedding_dim // 2, 
+                      kernel_size = 4, stride = 2, padding = 1),
+            # Batch normalization
+            nn.BatchNorm2d(num_features = embedding_dim // 2),
+            # ReLU activation function
+            nn.ReLU(),
+
+            # Residual block (No Downsampling)
+            Residual(embedding_dim // 2),
+
+            # Convolutional layer (Downsampling)
+            # (B, D/2 = 32, 32, 32) -> (B, D = 64, 16, 16)
+            nn.Conv2d(in_channels = embedding_dim // 2, 
                       out_channels = embedding_dim, 
                       kernel_size = 4, stride = 2, padding = 1),
             # ReLU activation function
-            nn.ReLU(),
+            # nn.ReLU(),
 
         )
 
@@ -105,19 +124,40 @@ class Decoder(nn.Module):
         # Decoder (Sequential layers)
         self.decoder = nn.Sequential(
 
-            # Transposed Convolutional layer (No upsampling)
+            # Transposed Convolutional layer (No Upsampling)
+            # (B, D = 64, Z_e = 16, Z_e = 16) -> (B, D / 2 = 32, 16, 16)
             nn.ConvTranspose2d(in_channels = embedding_dim,
-                               out_channels = 32,
+                               out_channels = embedding_dim // 2,
                                kernel_size = 3, stride = 1, padding = 1),
+            # Batch normalization
+            nn.BatchNorm2d(num_features = embedding_dim // 2),
+            # ReLU activation function
+            nn.ReLU(),
 
-            # Residual block
-            Residual(32),
+            # Residual block (No Upsampling)
+            Residual(embedding_dim // 2),
+            # Residual block (No Upsampling)
+            Residual(embedding_dim // 2),
 
-            # Convolutional layer (upsampling)
-            nn.ConvTranspose2d(in_channels = 32, 
+            # Transposed Convolutional layer (Upsampling)
+            # (B, D / 2 = 32, 16, 16) -> (B, D / 4 = 16, 32, 32)
+            nn.ConvTranspose2d(in_channels = embedding_dim // 2,
+                               out_channels = embedding_dim // 4,
+                               kernel_size = 4, stride = 2, padding = 1),
+            # Batch normalization
+            nn.BatchNorm2d(num_features = embedding_dim // 4),
+            # ReLU activation function
+            nn.ReLU(),
+
+            # Residual block (No Upsampling)
+            Residual(embedding_dim // 4),
+
+            # Convolutional layer (Upsampling)
+            # (B, D / 4 = 16, 32, 32) -> (B, C = 1, 64, 64)
+            nn.ConvTranspose2d(in_channels = embedding_dim // 4, 
                       out_channels = in_shape[1], 
                       kernel_size = 4, stride = 2, padding = 1),
-            # ReLU activation function
+            # Sigmoid activation function (output between 0 and 1)
             nn.Sigmoid(),
 
         )
@@ -193,10 +233,10 @@ class VQ(nn.Module):
         # and permute back into original shape (B, D, H', W')
         z_q = ( z_perm + (z_quant - z_perm).detach() ).permute(0, 3, 1, 2).contiguous()
 
-        # Codebook loss term (ensures embedding updates)
-        loss_codebook = F.mse_loss( z_quant.detach(), z_perm )
         # Commitment loss term (stabilize embedding choices)
-        loss_commit = F.mse_loss( z_quant, z_perm.detach() )
+        loss_codebook = F.mse_loss( z_quant, z_perm.detach() )
+        # Codebook loss term (ensures embedding updates)
+        loss_commit = F.mse_loss( z_quant.detach(), z_perm ) 
         # Total vector quantization loss function
         loss_vq = (loss_codebook) + (loss_commit * self.beta)
 
