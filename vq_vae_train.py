@@ -31,14 +31,12 @@ fname           = "Pong-v5"
 batch_size      = 16
 # Image dimensions (rescaled)
 img_dims        = ((64, )*2)
-# Contrast adjustment factor (1 = no adjustment)
-contrast_fact   = 1
 
 # Codebook dimension
-codebook_num    = 256
-codebook_dim    = 32
+codebook_num    = 512
+codebook_dim    = 64
 # Codebook commit loss weight
-beta            = 0.5
+beta            = 0.15
 
 # Training parameters
 epochs          = 50
@@ -70,6 +68,8 @@ transform_frames = v2.Compose([
     v2.Grayscale(),
     # Perform custom margin cropping
     dataloader.CustomMarginCrop(l, r, t, b),
+    # Randomly flip frames (for data augmentation)
+    v2.RandomHorizontalFlip(p=0.5),
     # Convert to tensor object
     v2.ToImage(),
     v2.ToDtype(torch.float32, scale = True),
@@ -122,6 +122,11 @@ for epoch in range(1, epochs + 1):
 
     print("\n", "*"*6, "Epoch ", epoch, " ", "*"*6)
 
+    # Counter for averaging
+    count = 1
+    # Average train loss
+    loss_train_avg = 0.0
+
     # For each batch of images
     for image_train in dataloader_train:
 
@@ -135,13 +140,19 @@ for epoch in range(1, epochs + 1):
         loss_recon       = criterion(out_train, image_train)
         loss_train       = loss_recon + loss_vq
 
+        # Compute average train loss
+        loss_train_avg += loss_train.item() / count
+
         # Print and keep track of loss value
-        print("Loss (Train) = {:.9f}".format(loss_train.item()), end = "\r")
+        print("Loss (Train) = {:.9f}".format(loss_train_avg), end = "\r")
 
         # Backpropagate errors backward through network
         loss_train.backward()
         # Perform optimizer step
         optimizer.step()
+
+        # Update counter
+        count += 1
 
     # Newline output
     print()
@@ -149,20 +160,39 @@ for epoch in range(1, epochs + 1):
     # Set model to evaluate
     model.eval()
 
+    # Counter for averaging
+    count = 1
+    # Average test loss
+    loss_test_avg   = 0.0
+    # Average test recon loss
+    loss_recon_avg  = 0.0
+    # Average test vq loss
+    loss_vq_avg     = 0.0
+
     # Obtain evaluation loss
     for image_test in dataloader_test:
 
         # Compute predicted image
-        out_test, _, _ = model(image_test)
+        out_test, _, loss_vq = model(image_test)
 
         # Compute reconstruction loss
         loss_test = criterion(out_test, image_test)
 
+        # Compute average reconstruction loss
+        loss_recon_avg += loss_test.item() / count
+        # Compute average vq loss
+        loss_vq_avg += loss_vq.item() / count
+        # Compute total test loss
+        loss_test_avg += loss_recon_avg + loss_vq_avg
+
         # Print and keep track of test loss value
-        print("Loss (Test)  = {:.9f}".format(loss_test.item()), end = "\r")
+        print("Loss (Test)  = {:.9f}".format(loss_test_avg), end = "\r")
+
+        # Update counter
+        count += 1
 
     # Append final loss of current epoch
-    loss_arr.append( [loss_recon.item(), loss_vq.item(), loss_test.item()] )
+    loss_arr.append( [loss_recon_avg, loss_vq_avg, loss_test_avg] )
 
     # Save the weights of the model every n-th epochs
     if epoch % save_weights == 0:
