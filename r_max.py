@@ -31,7 +31,7 @@ fname = "Pong-v5"
 env = gym.make("ALE/" + fname, 
                render_mode="rgb_array",
                frameskip = 1, 
-               repeat_action_probability = 0.25)
+               repeat_action_probability = 0.00)
 
 # Path to output
 path_out    = "./output/" + fname + "/"
@@ -39,11 +39,11 @@ path_out    = "./output/" + fname + "/"
 # Image dimensions to resize to (same as vq-vae!)
 img_dims = ((64, )*2)
 
-# Numer of epochs to train for
-epochs              = 250
+# Numer of episodes to train for
+episodes              = 250
 
 # Maximum number of states to contain
-state_space_size    = 5000
+state_space_size    = 10000
 # Maximum steps per episode
 max_episode_steps   = 1000
 
@@ -53,12 +53,12 @@ gamma               = 0.99
 max_iters           = 10
 tolerance           = 1e-5
 # Epsilon-greedy
-epsilon             = 0.99
-epsilon_decay       = 0.95
+epsilon             = 0.5  # 0.99
+epsilon_decay       = 0.90 # 0.95
 epsilon_min         = 0.01
 # R-Max parameters
 R_max               = 1
-m                   = 3
+m                   = 1 # 3
 
 
 
@@ -129,8 +129,12 @@ class IndexMapper:
         if state_code not in self.state_to_index:
             # Also check if the next index goes out of bounds
             if self.next_index >= self.state_space_size:
+                
                 # Don't return any index! (ignore this state)
-                return None
+                # return None
+
+                # Return the first frame ("default" state)
+                return next(iter(self.state_to_index.values()))
             
             # If not assigned an index, do it (next index equals length)
             self.state_to_index[state_code] = self.next_index
@@ -143,7 +147,7 @@ class IndexMapper:
 
 
 
-    def get_index_from_image(self, img):
+    def get_stateid(self, img):
         '''Return state id for a given frame'''
 
         # Pre-process the frames and add batch dimension
@@ -153,21 +157,22 @@ class IndexMapper:
         # Ensure no gradient calculation
         with torch.no_grad():
             # Compute output from VQ-VAE for given image
-            # z_e           ~ (1, 32, 32, 32)
-            # codebook_idx  ~ (1, 1, 32, 32)
-            _, codebook_idx, _ = self.model.encode_and_quantize(img)
+            # z_e           ~ (1, 64, 16, 16)
+            # codebook_idx  ~ (256) ~ (1, 1, 16, 16)
+            z_e, codebook_idx, _ = self.model.encode_and_quantize(img)
 
         # Reshape codebook indices to same dimensions as encoded image
-        codebook_idx = codebook_idx.view(1, 32, 32)
+        codebook_idx = codebook_idx.view(1, z_e.shape[-1], z_e.shape[-1])
 
         # Perform max pooling (reduce codebook size)
-        # (1, 1, 32, 32) -> (1, 1, 16, 16)
+        # z_e spatial dimensions -> half (1, 1, 8, 8)
         codebook_idx_ds = F.max_pool2d(codebook_idx, kernel_size = 4, stride = 2, padding = 1)
-        # (1, 1, 16, 16) -> (1, 1, 8, 8)
-        # codebook_idx_ds = F.max_pool2d(codebook_idx, kernel_size = 4, stride = 2, padding = 1)
 
-        # Obtain state id as hash, after converting indices to tuple
-        state_id = hash(tuple(codebook_idx_ds.view(-1).cpu().numpy().tolist()))
+        # State ID as 64-dim vector for each state
+        state_id = tuple(codebook_idx_ds.view(-1).to(torch.int).tolist())
+
+        # Hash State ID (modulo number of "buckets")
+        state_id = hash(state_id) % state_space_size
 
         # Return computed state id for the frame
         return state_id
@@ -248,7 +253,7 @@ def detgetMRP(P_sas, R_sa, pi):
 print()
 
 # Episode loop
-for episode in range(epochs):
+for episode in range(episodes):
 
     # Reset environment
     obs, _ = env.reset()
@@ -257,7 +262,7 @@ for episode in range(epochs):
     frame = Image.fromarray( env.render(), mode = "RGB" )
 
     # Convert frame into code (preprocess, encode, quantize)
-    state_code = indexmapper.get_index_from_image(frame)
+    state_code = indexmapper.get_stateid(frame)
 
     # Get the index in state dictionary corresponding to frame code
     state = indexmapper.get_index(state_code)
@@ -284,7 +289,7 @@ for episode in range(epochs):
         n_frame = Image.fromarray( env.render(), mode = "RGB" )
 
         # Convert new frame into code
-        n_state_code = indexmapper.get_index_from_image(n_frame)
+        n_state_code = indexmapper.get_stateid(n_frame)
 
         # Get the index
         n_state = indexmapper.get_index(n_state_code)
@@ -347,6 +352,13 @@ for episode in range(epochs):
 
     # Compute new Q-value function
     Q = reward_mdp + gamma * np.squeeze( np.matmul( state_mdp, V ) )
+
+    # Check if Q-value ever changes
+    print("Q-value change:", np.max(np.abs(Q - Q_prev)))
+    # Track visited states
+    print(f"Known (s, a): {np.sum(n_sa >= m)} / {nS * nA}")
+    # Check how many unique states are known
+    print(f"Unique states seen so far: {len(indexmapper)}\n")
 
     # Update policy
     policy = np.argmax(Q, axis = 1)
