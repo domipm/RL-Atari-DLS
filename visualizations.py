@@ -21,7 +21,7 @@ from    dataloader                  import  FramesDataset, CustomMarginCrop, get
 
 
 # Game name
-fname = "Pong-v5"
+fname = "Boxing-v5"
 
 # Path to frames
 path_frames = f"./frames/{fname}/"
@@ -120,14 +120,14 @@ fig, ax = plt.subplots(nrows = n_col, ncols = n_img)
 
 # Plot originals
 for i in range(n_img):
-        ax[0,i].imshow(image[i][0], cmap = 'viridis')
+        ax[0,i].imshow(image[i][0], cmap = 'gray')
         ax[0,i].axis('off')
 # Plot codebook 
 for i in range(n_img):
         ax[1,i].imshow(indices_re[i], cmap = 'viridis')
         ax[1,i].axis('off')
 
-plt.tight_layout()
+plt.tight_layout() 
 plt.savefig(f"./output/{fname}/vqvae_codebook.pdf")
 
 plt.close()
@@ -172,7 +172,7 @@ ax[1].hlines(y = t - 5, xmin = 0, xmax = 160, color="red")
 # Save figure
 plt.tight_layout()
 plt.savefig(f"{path_out}vqvae_preprocess.pdf")
-plt.show()
+# plt.show()
 
 
 
@@ -199,7 +199,7 @@ grid_img = torchvision.utils.make_grid(images.detach(), nrow=4)
 npimg    = grid_img.permute(1, 2, 0).numpy()
 
 # Plot image
-ax[0].imshow(npimg)
+ax[0].imshow(npimg, cmap="gray")
 
 # Set model to evaluation mode
 model.eval()
@@ -213,7 +213,7 @@ grid_img = torchvision.utils.make_grid(reconstructed.detach(), nrow=4)
 npimg    = grid_img.permute(1, 2, 0).numpy()
 
 # Plot image
-ax[1].imshow(npimg)
+ax[1].imshow(npimg, cmap="gray")
 
 # Setup narrow margins and save image
 plt.tight_layout()

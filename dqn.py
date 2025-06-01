@@ -27,13 +27,13 @@ import  matplotlib.pyplot   as      plt
 
 
 # Game selection
-env_name = "Pong-v5"
+env_name = "Boxing-v5"
 
 # Make directory to store results
 out_dir = os.path.join("./output/" + env_name)
 
 # Training Hyperparameters
-epochs          = 1500                   
+epochs          = 1500                
 batch_size      = 32                 
 eval_cycle      = 500 
 learning_rate   = 2.5*10**-4                     
@@ -660,6 +660,10 @@ print("\nTraining...\n")
 
 
 
+# Write to output file same results (print file header)
+with open(log_path,"a") as f:
+    f.write(f"epochs, total_loss, total_reward, avgloss, avgreward, steps_done\n")
+
 # Epoch loop 
 for epoch in range(1, epochs + 1):
 
@@ -820,7 +824,7 @@ for epoch in range(1, epochs + 1):
     print(output)
     # Write to output file same results
     with open(log_path,"a") as f:
-        f.write(f"{output}\n")
+        f.write(f"{epoch}, {total_loss}, {total_reward}, {avgloss}, {avgreward}, {steps_done}\n")
 
     # Save model of last step
     if epoch % save_weights == 0:

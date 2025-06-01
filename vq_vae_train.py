@@ -25,7 +25,7 @@ from    vq_vae                      import  VQ_VAE
 
 
 # Name of the game (in this case, testing dataset)
-fname           = "Pong-v5"
+fname           = "Breakout-v5"
 
 # Batch size
 batch_size      = 16
@@ -33,8 +33,8 @@ batch_size      = 16
 img_dims        = ((64, )*2)
 
 # Codebook dimension
-codebook_num    = 512
-codebook_dim    = 64
+codebook_num    = 256
+codebook_dim    = 32
 # Codebook commit loss weight
 beta            = 0.15
 
@@ -69,7 +69,7 @@ transform_frames = v2.Compose([
     # Perform custom margin cropping
     dataloader.CustomMarginCrop(l, r, t, b),
     # Randomly flip frames (for data augmentation)
-    v2.RandomHorizontalFlip(p=0.5),
+    # v2.RandomHorizontalFlip(p=0.5),
     # Convert to tensor object
     v2.ToImage(),
     v2.ToDtype(torch.float32, scale = True),
